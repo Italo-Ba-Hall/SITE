@@ -4,7 +4,7 @@
 1.1. [✅] Inicializar o repositório do projeto com Git (`git init`).
 1.2. [✅] Criar a estrutura de pastas: `/frontend` e `/backend`.
 1.3. [✅] No diretório `/frontend`, inicializar o projeto com React + TypeScript (`npx create-react-app frontend --template typescript`).
-1.4. [ ] No diretório `/backend`, configurar o ambiente virtual Python (`python -m venv venv`) e instalar as dependências iniciais (Flask ou FastAPI).
+1.4. [✅] No diretório `/backend`, configurar o ambiente virtual Python (`python -m venv venv`) e instalar as dependências iniciais (Flask ou FastAPI).
 
 ## 2. [🔄] Fase 2: Desenvolvimento do Frontend (React + TypeScript)
 2.1. [✅] **Estrutura Base e Estilos**
@@ -19,14 +19,14 @@
 2.2.3. [✅] Criar o componente do modal de resultados (`ResultModal.tsx`), capaz de receber conteúdo dinamicamente.
 2.2.4. [ ] Criar o componente de navegação (`Navbar.tsx`) com os botões "Divirta-se" e "Crie".
 
-## 3. [ ] Fase 3: Desenvolvimento do Backend (Python)
-3.1. [ ] **Configuração da API**
-3.1.1. [ ] Estruturar a aplicação base com Flask ou FastAPI.
-3.1.2. [ ] Configurar o CORS para permitir requisições do ambiente de desenvolvimento do React.
+## 3. [🔄] Fase 3: Desenvolvimento do Backend (Python)
+3.1. [✅] **Configuração da API**
+3.1.1. [✅] Estruturar a aplicação base com Flask ou FastAPI.
+3.1.2. [✅] Configurar o CORS para permitir requisições do ambiente de desenvolvimento do React.
 
-3.2. [ ] **Criação dos Endpoints**
-3.2.1. [ ] Criar o endpoint `POST /suggest` que recebe o texto do usuário e retorna uma lista de sugestões com base em palavras-chave.
-3.2.2. [ ] Criar o endpoint `GET /content/<suggestion_id>` que retorna o título e o texto detalhado para ser exibido no modal.
+3.2. [🔄] **Criação dos Endpoints**
+3.2.1. [✅] Criar o endpoint `POST /suggest` que recebe o texto do usuário e retorna uma lista de sugestões com base em palavras-chave.
+3.2.2. [✅] Criar o endpoint `GET /content/<suggestion_id>` que retorna o título e o texto detalhado para ser exibido no modal.
 3.2.3. [ ] Criar o endpoint `POST /contact` que recebe `nome` e `email` do formulário no modal e implementa a lógica de notificação (ex: enviar um e-mail).
 
 ## 4. [ ] Fase 4: Integração Frontend-Backend e Lógica
