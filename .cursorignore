@@ -1,0 +1,40 @@
+# Cursor IDE ignore file
+# Ignora dependências e arquivos gerados
+
+# Dependencies
+frontend/node_modules/
+backend/venv/
+backend/__pycache__/
+**/node_modules/
+**/.venv/
+**/__pycache__/
+
+# Build outputs
+frontend/build/
+frontend/dist/
+**/.next/
+**/out/
+
+# Cache directories
+**/.cache/
+**/tmp/
+**/temp/
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+**/*.log
+
+# Environment files
+.env
+.env.local
+.env.production 

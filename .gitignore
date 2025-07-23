@@ -1,0 +1,51 @@
+# Global .gitignore for /-HALL-DEV project
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/venv/
+backend/__pycache__/
+
+# Build outputs
+frontend/build/
+frontend/dist/
+backend/dist/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.cursor/
+
+# OS specific
+.DS_Store
+Thumbs.db
+*.orig
+
+# Logs
+*.log
+logs/
+
+# Cache directories
+.cache/
+.tmp/
+*.tmp
+
+# Python specific
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+
+# Backup files
+*.bak
+*.backup
+*~ 
