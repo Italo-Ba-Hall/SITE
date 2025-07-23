@@ -1,0 +1,16 @@
+---
+alwaysApply: true
+---
+NUNCA PERMITA QUE NOSSO PROJETO TENHA:
+1. Bundle Monolítico Gigante
+-Todas as páginas carregam simultaneamente no primeiro acesso
+-Dashboard sozinho importa DIVERSOS componentes pesados
+-Sem lazy loading ou code splitting
+2. Carregamento Desnecessário
+-Recharts, Framer Motion, múltiplas dependências pesadas
+-AuthGuard renderiza loading a cada navegação
+-Hooks fazem múltiplas requisições simultâneas
+3. Nenhuma Otimização
+-Zero cache de dados
+-Zero memoização de componentes
+-Zero preload estratégico

@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+# Regras do Projeto: Plataforma Conversacional /-HALL-DEV
+
+## 1. Objetivo Principal
+
+O objetivo central é desenvolver uma **site web conversacional** para captar e qualificar leads de forma inteligente. A interface abandona a navegação tradicional e foca em um **agente de IA** que guia o usuário a soluções personalizadas. A estética deve ser sempre minimalista, moderna e dinâmica, refletindo a vanguarda tecnológica da marca.
+
+## 2. Tecnologias (Stack) Obrigatórias
+
+Sempre gere código e forneça soluções usando exclusivamente esta stack:
+
+- **Frontend:** **React** com **TypeScript** (.tsx). Use componentes funcionais e Hooks.
+- **Backend:** **Python** com o framework **FastAPI**.
+- **Estilização:** **TailwindCSS**.
+- **Validação de Dados (Backend):** **Pydantic** (nativo do FastAPI).
+- **Comunicação Frontend-Backend:** API RESTful. Use `axios` ou `fetch` no frontend.
+
+## 3. Arquitetura e Padrões de Código
+
+- **Princípio da Separação:** O frontend e o backend são **totalmente desacoplados**. Nunca misture lógicas. A comunicação é feita **apenas** por chamadas de API.
+- **API-First:** O contrato da API (endpoints e schemas Pydantic) é a fonte da verdade. Modele os tipos no TypeScript com base nos schemas do Pydantic.
+- **Componentização no Frontend:** Crie componentes React com responsabilidade única. Ex: `PromptInput.tsx`, `SuggestionsDropdown.tsx`, `ResultModal.tsx`.
+- **Tipagem Estrita:** **NÃO use `any`**. Tipe todas as props, estados, e retornos de função no TypeScript. No Python, use Type Hints.
+- **Lógica de IA Evolutiva:** No backend, a lógica inicial de sugestões será baseada em palavras-chave. Estruture o código em módulos de serviço para que essa lógica possa ser facilmente substituída por um modelo de PLN mais complexo no futuro, sem impactar os endpoints.
+- **Responsividade:** Todas as soluções de UI devem seguir a abordagem **mobile-first**.
+
+## 4. Exemplo de Fluxo de Interação a ser Respeitado
+
+1.  **Usuário digita** no `PromptInput`.
+2.  **Frontend chama** o endpoint `POST /suggest` no backend com o texto.
+3.  **Backend processa** o texto e retorna uma lista de sugestões.
+4.  **Frontend exibe** as sugestões no `SuggestionsDropdown`.
+5.  **Usuário clica** em uma sugestão.
+6.  **Frontend chama** o endpoint `GET /content/{suggestion_id}`.
+7.  **Backend retorna** o conteúdo detalhado para aquela sugestão.
+8.  **Frontend exibe** os detalhes no `ResultModal`.

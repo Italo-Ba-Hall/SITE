@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&display=swap');
+
+/* Estilos base preservados do HTML original */
+body {
+  background-color: #080808;
+  color: #ffffff;
+  font-family: 'Roboto Mono', monospace;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Canvas de fundo */
+#backgroundCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  transition: opacity 1s ease-out;
+}
+
+/* Container de animação */
+.animation-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  transition: opacity 1.5s ease-out, transform 1.5s cubic-bezier(0.7, 0, 0.3, 1);
+}
+
+.animation-container.hidden {
+  opacity: 0;
+  transform: scale(0.5);
+  pointer-events: none;
+}
+
+/* SVG Fibonacci */
+#fibonacci-svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1.15);
+  width: 90vw;
+  height: 90vh;
+}
+
+#fibonacci-svg path, #fibonacci-svg text {
+  transition: opacity 1s ease-out;
+}
+
+/* Conteúdo principal */
+.content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  z-index: 10;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 2s cubic-bezier(0.25, 1, 0.5, 1), transform 2s cubic-bezier(0.25, 1, 0.5, 1);
+  pointer-events: none;
+  width: 90%;
+  max-width: 700px;
+}
+
+.content.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+}
+
+/* Logo e texto */
+.logo {
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .logo {
+    font-size: 4rem;
+  }
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: #00e5ff;
+  text-transform: uppercase;
+  margin-bottom: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* Container do prompt */
+.prompt-container {
+  background-color: rgba(1, 1, 1, 0.8);
+  border: 1px solid #1a1a1a;
+  padding: 1.5rem;
+  text-align: left;
+  border-radius: 4px;
+  font-size: 1rem;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+  cursor: text;
+  backdrop-filter: blur(3px);
+}
+
+.prompt-line {
+  display: flex;
+  align-items: center;
+}
+
+.prompt-prefix {
+  color: #cccccc;
+  margin-right: 0.5rem;
+}
+
+.prompt-text {
+  color: #ffffff;
+}
+
+.prompt-cursor {
+  display: inline-block;
+  background-color: #ffffff;
+  width: 9px;
+  height: 1.1rem;
+  margin-left: 2px;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+.actual-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  z-index: -1;
+  cursor: text;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* Modal de resultado */
+.result-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+
+.result-modal-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.result-modal-content {
+  background-color: #010101;
+  border: 1px solid #00e5ff;
+  border-radius: 8px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  overflow-y: auto;
+  transform: scale(0.9);
+  transition: transform 0.5s;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.result-modal-overlay.visible .result-modal-content {
+  transform: scale(1);
+}
+
+.result-title {
+  color: #00e5ff;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+  padding-bottom: 1rem;
+}
+
+.result-text {
+  line-height: 1.8;
+  text-align: left;
+  white-space: pre-wrap;
+  color: #cccccc;
+}
+
+.result-text h3 {
+  color: #00e5ff;
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.result-text ul {
+  list-style-type: none;
+  padding-left: 1rem;
+}
+
+.result-text li::before {
+  content: '» ';
+  color: #00e5ff;
+  margin-right: 0.5rem;
+}
+
+.result-text li {
+  margin-bottom: 0.5rem;
+}
+
+.result-text strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.close-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+}

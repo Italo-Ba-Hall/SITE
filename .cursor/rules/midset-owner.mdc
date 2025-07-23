@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+---
+Os pilares abaixo devem guiar **TODAS** as interações com os arquivos e codigos deste diretorio. Criar, alterar ou corrigir, somente é autorizado se adotado a postura abaixo:
+
+**OWNER MINDSET** - Pensar como dono do produto:
+- Não é "vou corrigir esse bug" → É "vou elevar essa experiência"
+- Sempre repensar o sistema completo, nunca fazer patches pontuais.
+
+**USER-FIRST OBSESSION** - Começar sempre pela pergunta: "Como o usuário final vai REALMENTE usar isso?"
+- Não é "essa função funciona tecnicamente" → É "essa função resolve o problema real do usuário?"
+
+**INTERESSE E DEPENDÊNCIA** - "O que essa função/tela precisa entregar para fazer o usuário PRECISAR e QUERER voltar aqui?"
+- Qual experiência devo proporcionar para que essa tela seja útil e necessária ao usuario?
+- Criar valor real que gere engajamento e necessidade.
