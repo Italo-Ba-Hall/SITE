@@ -74,19 +74,21 @@ const AnimationIntro: React.FC = () => {
          const elements = Array.from(svg.querySelectorAll(groups[i]));
          delay = 0;
          for (const el of elements) {
+           // eslint-disable-next-line no-loop-func
            animateElement(el, delay, fastDuration);
            delay += delays[i];
          }
          await new Promise(r => setTimeout(r, delay + fastDuration));
        }
 
-       // Animar espiral
-       delay = 0;
-       const spiralPaths = Array.from(svg.querySelectorAll('#espiral path'));
-       for (const path of spiralPaths) {
-         animateElement(path, delay, spiralDuration);
-         delay += 100;
-       }
+               // Animar espiral
+        delay = 0;
+        const spiralPaths = Array.from(svg.querySelectorAll('#espiral path'));
+        for (const path of spiralPaths) {
+          // eslint-disable-next-line no-loop-func
+          animateElement(path, delay, spiralDuration);
+          delay += 100;
+        }
       await new Promise(r => setTimeout(r, delay + spiralDuration));
 
       // Animar texto do slogan

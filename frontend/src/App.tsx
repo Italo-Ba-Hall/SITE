@@ -7,7 +7,7 @@ import ResultModal from './components/ResultModal';
 
 function App() {
   return (
-    <div className="App bg-deep-black min-h-screen">
+    <div className="App" style={{backgroundColor: '#080808', minHeight: '100vh'}}>
       <BackgroundCanvas />
       <AnimationIntro />
       <MainContent />

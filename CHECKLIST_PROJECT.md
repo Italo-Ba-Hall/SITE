@@ -1,22 +1,22 @@
 # Checklist de Lançamento do Site /-HALL-DEV
 
-## 1. [ ] Fase 1: Configuração e Estrutura do Projeto
-1.1. [ ] Inicializar o repositório do projeto com Git (`git init`).
-1.2. [ ] Criar a estrutura de pastas: `/frontend` e `/backend`.
-1.3. [ ] No diretório `/frontend`, inicializar o projeto com React + TypeScript (`npx create-react-app frontend --template typescript`).
+## 1. [✅] Fase 1: Configuração e Estrutura do Projeto
+1.1. [✅] Inicializar o repositório do projeto com Git (`git init`).
+1.2. [✅] Criar a estrutura de pastas: `/frontend` e `/backend`.
+1.3. [✅] No diretório `/frontend`, inicializar o projeto com React + TypeScript (`npx create-react-app frontend --template typescript`).
 1.4. [ ] No diretório `/backend`, configurar o ambiente virtual Python (`python -m venv venv`) e instalar as dependências iniciais (Flask ou FastAPI).
 
-## 2. [ ] Fase 2: Desenvolvimento do Frontend (React + TypeScript)
-2.1. [ ] **Estrutura Base e Estilos**
-2.1.1. [ ] Migrar a estrutura do `site.html` para componentes React (ex: `App.tsx`, `IntroAnimation.tsx`, `MainContent.tsx`).
-2.1.2. [ ] Configurar o TailwindCSS no projeto React para aproveitar os estilos já criados.
-2.1.3. [ ] Replicar as animações de fundo (Matrix Rain, Circuitos) em um componente de Canvas.
-2.1.4. [ ] Implementar a animação de introdução do SVG, garantindo que ela seja executada apenas uma vez na carga inicial.
+## 2. [🔄] Fase 2: Desenvolvimento do Frontend (React + TypeScript)
+2.1. [✅] **Estrutura Base e Estilos**
+2.1.1. [✅] Migrar a estrutura do `site.html` para componentes React (ex: `App.tsx`, `IntroAnimation.tsx`, `MainContent.tsx`).
+2.1.2. [✅] Configurar o TailwindCSS no projeto React para aproveitar os estilos já criados.
+2.1.3. [✅] Replicar as animações de fundo (Matrix Rain, Circuitos) em um componente de Canvas.
+2.1.4. [✅] Implementar a animação de introdução do SVG, garantindo que ela seja executada apenas uma vez na carga inicial.
 
-2.2. [ ] **Componentes de Interação**
-2.2.1. [ ] Criar o componente do prompt de comando (`Prompt.tsx`), incluindo o `input` com o placeholder "No que você trabalha?...".
+2.2. [🔄] **Componentes de Interação**
+2.2.1. [✅] Criar o componente do prompt de comando (`Prompt.tsx`), incluindo o `input` com o placeholder "No que você trabalha?...".
 2.2.2. [ ] Criar o componente do dropdown de sugestões (`SuggestionsDropdown.tsx`), estilizado e inicialmente oculto.
-2.2.3. [ ] Criar o componente do modal de resultados (`ResultModal.tsx`), capaz de receber conteúdo dinamicamente.
+2.2.3. [✅] Criar o componente do modal de resultados (`ResultModal.tsx`), capaz de receber conteúdo dinamicamente.
 2.2.4. [ ] Criar o componente de navegação (`Navbar.tsx`) com os botões "Divirta-se" e "Crie".
 
 ## 3. [ ] Fase 3: Desenvolvimento do Backend (Python)

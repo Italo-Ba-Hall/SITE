@@ -148,7 +148,7 @@ const BackgroundCanvas: React.FC = () => {
     <canvas
       ref={canvasRef}
       id="backgroundCanvas"
-      className="absolute top-0 left-0 z-5 transition-opacity duration-1000 ease-out"
+      style={{position: 'absolute', top: 0, left: 0, zIndex: 5, transition: 'opacity 1s ease-out'}}
     />
   );
 };
