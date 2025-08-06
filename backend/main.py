@@ -6,11 +6,12 @@ Tecnologias: FastAPI + Python + Pydantic
 Arquitetura: API-First, Desacoplada do Frontend
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 import uvicorn
+from datetime import datetime
 
 # Inicializar FastAPI
 app = FastAPI(
@@ -50,6 +51,19 @@ class ContentResponse(BaseModel):
     title: str
     content: str
     details: dict
+
+class ContactRequest(BaseModel):
+    """Schema para requisição de contato"""
+    nome: str
+    email: EmailStr
+    mensagem: Optional[str] = ""
+    suggestion_id: Optional[str] = None
+
+class ContactResponse(BaseModel):
+    """Schema para resposta de contato"""
+    success: bool
+    message: str
+    timestamp: datetime
 
 # === ENDPOINTS ===
 
@@ -166,6 +180,37 @@ async def get_content(suggestion_id: str):
         )
     
     return content_map[suggestion_id]
+
+@app.post("/contact", response_model=ContactResponse)
+async def submit_contact(request: ContactRequest):
+    """
+    Endpoint para processar formulários de contato
+    """
+    try:
+        # Aqui você implementaria a lógica de envio de email
+        # Por exemplo, usando SMTP, SendGrid, ou outros serviços
+        
+        # Simular processamento
+        print(f"Novo contato recebido:")
+        print(f"Nome: {request.nome}")
+        print(f"Email: {request.email}")
+        print(f"Mensagem: {request.mensagem}")
+        print(f"Sugestão ID: {request.suggestion_id}")
+        
+        # Em produção, você enviaria um email aqui
+        # send_email(request.nome, request.email, request.mensagem, request.suggestion_id)
+        
+        return ContactResponse(
+            success=True,
+            message="Mensagem enviada com sucesso! Entraremos em contato em breve.",
+            timestamp=datetime.now()
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao processar contato: {str(e)}"
+        )
 
 @app.get("/health")
 async def health_check():

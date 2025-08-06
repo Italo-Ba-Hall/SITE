@@ -1,43 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const AnimationIntro: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
   const svgRef = useRef<SVGSVGElement>(null);
   const animationCompleteRef = useRef(false);
-
-  const animateElement = useCallback((el: Element, delay: number, duration: number): Promise<void> => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const element = el as SVGPathElement | SVGTextElement;
-        element.style.transition = `stroke-dashoffset ${duration / 1000}s ease-in-out, opacity ${duration / 1000}s ease-in-out`;
-        if (element.tagName === 'path') {
-          (element as SVGPathElement).style.strokeDashoffset = '0';
-        }
-        element.style.opacity = '1';
-        setTimeout(resolve, duration);
-      }, delay);
-    });
-  }, []);
-
-  const typeWriter = useCallback((el: SVGTextElement, delay: number): Promise<void> => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const text = el.textContent || '';
-        el.textContent = '';
-        el.style.opacity = '1';
-        let i = 0;
-        const interval = setInterval(() => {
-          if (i < text.length) {
-            el.textContent += text.charAt(i);
-            i++;
-          } else {
-            clearInterval(interval);
-            resolve();
-          }
-        }, 80);
-      }, delay);
-    });
-  }, []);
 
   useEffect(() => {
     if (animationCompleteRef.current) return;
@@ -59,32 +25,71 @@ const AnimationIntro: React.FC = () => {
         element.style.opacity = '0';
       });
 
+      // Função para animar elementos
+      const animateElement = (el: Element, delay: number, duration: number): Promise<void> => {
+        return new Promise(resolve => {
+          setTimeout(() => {
+            const element = el as SVGPathElement | SVGTextElement;
+            element.style.transition = `stroke-dashoffset ${duration / 1000}s ease-in-out, opacity ${duration / 1000}s ease-in-out`;
+            if (element.tagName === 'path') {
+              (element as SVGPathElement).style.strokeDashoffset = '0';
+            }
+            element.style.opacity = '1';
+            setTimeout(resolve, duration);
+          }, delay);
+        });
+      };
+
+      // Função typewriter
+      const typeWriter = (el: SVGTextElement, delay: number): Promise<void> => {
+        return new Promise(resolve => {
+          setTimeout(() => {
+            const text = el.textContent || '';
+            el.textContent = '';
+            el.style.opacity = '1';
+            let i = 0;
+            const interval = setInterval(() => {
+              if (i < text.length) {
+                el.textContent += text.charAt(i);
+                i++;
+              } else {
+                clearInterval(interval);
+                resolve();
+              }
+            }, 80);
+          }, delay);
+        });
+      };
+
       // Sequência de animação
+      let delay = 0;
       const fastDuration = 500;
       const spiralDuration = 1500;
 
       const groups = ['#linhas-construcao path', '#quadrados-solidos path', '#numeros text'];
       const delays = [20, 40, 60];
 
-      // Animar grupos sequencialmente
-      for (let i = 0; i < groups.length; i++) {
-        const elements = Array.from(svg.querySelectorAll(groups[i]));
-        let groupDelay = 0;
-        for (const el of elements) {
-          animateElement(el, groupDelay, fastDuration);
-          groupDelay += delays[i];
-        }
-        await new Promise(r => setTimeout(r, groupDelay + fastDuration));
-      }
+             // Animar grupos sequencialmente
+       for (let i = 0; i < groups.length; i++) {
+         const elements = Array.from(svg.querySelectorAll(groups[i]));
+         delay = 0;
+         for (const el of elements) {
+           // eslint-disable-next-line no-loop-func
+           animateElement(el, delay, fastDuration);
+           delay += delays[i];
+         }
+         await new Promise(r => setTimeout(r, delay + fastDuration));
+       }
 
-      // Animar espiral
-      let spiralDelay = 0;
-      const spiralPaths = Array.from(svg.querySelectorAll('#espiral path'));
-      for (const path of spiralPaths) {
-        animateElement(path, spiralDelay, spiralDuration);
-        spiralDelay += 100;
-      }
-      await new Promise(r => setTimeout(r, spiralDelay + spiralDuration));
+               // Animar espiral
+        delay = 0;
+        const spiralPaths = Array.from(svg.querySelectorAll('#espiral path'));
+        for (const path of spiralPaths) {
+          // eslint-disable-next-line no-loop-func
+          animateElement(path, delay, spiralDuration);
+          delay += 100;
+        }
+      await new Promise(r => setTimeout(r, delay + spiralDuration));
 
       // Animar texto do slogan
       const sloganText = svg.querySelector('#slogan-text') as SVGTextElement;
@@ -120,7 +125,7 @@ const AnimationIntro: React.FC = () => {
     };
 
     runIntroAnimation();
-  }, [animateElement, typeWriter]);
+  }, []);
 
   return (
     <div className={`animation-container ${!isVisible ? 'hidden' : ''}`}>

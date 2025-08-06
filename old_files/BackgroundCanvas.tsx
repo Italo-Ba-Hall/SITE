@@ -14,12 +14,6 @@ interface CircuitParticle {
   radius: number;
 }
 
-interface AnimationModeEvent extends CustomEvent {
-  detail: {
-    mode: 'rain' | 'circuit';
-  };
-}
-
 const BackgroundCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationModeRef = useRef<'rain' | 'circuit'>('rain');
@@ -130,12 +124,12 @@ const BackgroundCanvas: React.FC = () => {
     };
 
     // Event listener para mudança de modo de animação
-    const handleAnimationModeChange = (event: AnimationModeEvent) => {
+    const handleAnimationModeChange = (event: CustomEvent) => {
       animationModeRef.current = event.detail.mode;
     };
 
     window.addEventListener('resize', handleResize);
-    window.addEventListener('animationModeChange', handleAnimationModeChange as EventListener);
+    window.addEventListener('animationModeChange' as any, handleAnimationModeChange);
 
     setupRain();
     setupCircuits();
@@ -143,7 +137,7 @@ const BackgroundCanvas: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('animationModeChange', handleAnimationModeChange as EventListener);
+      window.removeEventListener('animationModeChange' as any, handleAnimationModeChange);
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }

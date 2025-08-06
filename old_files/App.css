@@ -1,0 +1,22 @@
+/* App.css - Estilos específicos para o componente App */
+
+.App {
+  text-align: center;
+}
+
+/* Override z-index classes do TailwindCSS se necessário */
+.z-5 {
+  z-index: 5;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
+.z-20 {
+  z-index: 20;
+}
+
+.z-100 {
+  z-index: 100;
+}
