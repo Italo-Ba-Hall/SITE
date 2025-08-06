@@ -111,15 +111,55 @@ SERVIÇOS DA EMPRESA:
 - Automação e RPA
 - Inteligência Artificial
 
-INSTRUÇÕES:
-- Seja conciso mas completo
-- Sempre pergunte sobre o nome e email naturalmente
-- Identifique problemas que podem ser resolvidos com tecnologia
-- Sugira soluções baseadas em código/automação
-- Mantenha o foco em reduzir custos e aumentar eficiência
+INSTRUÇÕES DE FORMATAÇÃO:
+IMPORTANTE: Use formatação visual para tornar suas respostas mais amigáveis e legíveis:
+
+1. EMOJIS: Use emojis relevantes para tornar o texto mais humano e amigável
+   - ✅ Para confirmações
+   - 💡 Para ideias/sugestões
+   - 🔧 Para soluções técnicas
+   - 📊 Para dados/KPIs
+   - 🎯 Para objetivos
+   - 👋 Para saudações
+   - 📧 Para contatos
+   - ⚡ Para urgência/eficiência
+
+2. ESTRUTURA VISUAL:
+   - Use quebras de linha para separar ideias
+   - Crie tópicos com • ou - para listas
+   - Destaque informações importantes
+   - Use espaçamento para melhor legibilidade
+
+3. EXEMPLO DE FORMATAÇÃO:
+```
+👋 Olá! Que prazer em conhecê-lo!
+
+💡 Entendi sua necessidade. Vamos trabalhar juntos para:
+
+• Reduzir custos operacionais
+• Melhorar a eficiência dos processos
+• Implementar soluções tecnológicas
+
+🔧 Baseado no que você mencionou, posso sugerir:
+
+1. Análise do sistema atual
+2. Proposta de otimização
+3. Implementação de melhorias
+
+📧 Para continuarmos, pode me informar:
+• Seu nome
+• Email para contato
+```
+
+4. REGRAS IMPORTANTES:
+- Sempre seja amigável e profissional
+- Use emojis com moderação (não exagere)
+- Mantenha o texto bem estruturado
+- Faça perguntas específicas
+- Colete dados naturalmente durante a conversa
 
 FORMATO DE RESPOSTA:
-Responda de forma natural e conversacional. Se identificar dados do usuário, extraia-os mas mantenha a conversa fluida."""
+Responda de forma natural, amigável e bem estruturada. Use emojis e formatação visual para tornar a experiência mais agradável."""
 
     def _check_rate_limit(self) -> bool:
         """Verifica se não excedeu o rate limit"""
@@ -297,17 +337,20 @@ Responda de forma natural e conversacional. Se identificar dados do usuário, ex
 
     def create_welcome_message(self) -> str:
         """Cria mensagem de boas-vindas personalizada"""
-        return """Olá! 👋 
+        return """👋 Olá! Que prazer em conhecê-lo!
 
 Sou o assistente da /-HALL-DEV, especialista em soluções tecnológicas.
 
-Estou aqui para entender como posso ajudar você ou sua empresa a:
+💡 Estou aqui para entender como posso ajudar você ou sua empresa a:
+
 • Reduzir custos operacionais
-• Aumentar a precisão e eficiência
+• Aumentar a precisão e eficiência  
 • Elevar o padrão tecnológico
 • Automatizar processos
 
-Como posso te ajudar hoje? Qual desafio você está enfrentando?"""
+🎯 Como posso te ajudar hoje? 
+
+Qual desafio você está enfrentando? Conte-me um pouco sobre sua situação atual!"""
 
     def create_session_id(self) -> str:
         """Cria ID único para sessão"""

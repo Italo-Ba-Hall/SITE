@@ -2,5 +2,5 @@
 alwaysApply: true
 ---
 SEMPRE que alterar, modificar e criar qualquer arquivo no DIRETORIO, voce deve considerar: 
-"Quais interdependências vão ser afetadas? Estou conduzindo a alteração de forma que sei exatamente o que isso vai acarretar ao projeto geral? Estou ciente quais variveis sera afetadas em outros arquivos?". 
+"Quais interdependências vão ser afetadas? Estou conduzindo a alteração de forma que sei exatamente o que isso vai acarretar ao projeto geral? Estou ciente quais variveis serao afetadas em outros arquivos?". 
 REGRA MASTER.

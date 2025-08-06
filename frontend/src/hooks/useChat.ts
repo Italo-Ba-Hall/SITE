@@ -23,6 +23,7 @@ interface UseChatReturn {
   isFirstInteraction: boolean;
   retryLastMessage: () => Promise<void>;
   clearError: () => void;
+  isSessionReady: boolean;
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -43,7 +44,7 @@ const fetchWithRetry = async (
   options: RequestInit, 
   maxRetries: number = RETRY_CONFIG.maxRetries
 ): Promise<Response> => {
-  let lastError: Error;
+  let lastError: Error | null = null;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -70,7 +71,11 @@ const fetchWithRetry = async (
     }
   }
   
-  throw lastError!;
+  if (lastError) {
+    throw lastError;
+  }
+  
+  throw new Error('Falha na requisição após todas as tentativas');
 };
 
 export const useChat = (): UseChatReturn => {
@@ -79,6 +84,7 @@ export const useChat = (): UseChatReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFirstInteraction, setIsFirstInteraction] = useState(true);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   
   const sessionRef = useRef<string | null>(null);
   const lastMessageRef = useRef<string>('');
@@ -91,6 +97,7 @@ export const useChat = (): UseChatReturn => {
     try {
       setIsLoading(true);
       setError(null);
+      setIsSessionReady(false);
 
       const response = await fetchWithRetry(`${API_BASE_URL}/chat/start`, {
         method: 'POST',
@@ -127,10 +134,12 @@ export const useChat = (): UseChatReturn => {
       setMessages([welcomeMessage]);
       sessionRef.current = data.session_id;
       setIsFirstInteraction(false);
+      setIsSessionReady(true);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(`Erro ao iniciar chat: ${errorMessage}`);
+      setIsSessionReady(false);
       
       // Fallback: adicionar mensagem de erro amigável
       const fallbackMessage: ChatMessage = {
@@ -146,8 +155,9 @@ export const useChat = (): UseChatReturn => {
   }, []);
 
   const sendMessage = useCallback(async (message: string) => {
-    if (!sessionRef.current) {
-      setError('Sessão não encontrada');
+    // Verificar se a sessão está pronta
+    if (!isSessionReady || !sessionRef.current) {
+      setError('Aguarde a inicialização do chat...');
       return;
     }
 
@@ -209,7 +219,7 @@ export const useChat = (): UseChatReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isSessionReady]);
 
   const retryLastMessage = useCallback(async () => {
     if (lastMessageRef.current) {
@@ -248,11 +258,12 @@ export const useChat = (): UseChatReturn => {
       setMessages([]);
       sessionRef.current = null;
       setIsFirstInteraction(true);
+      setIsSessionReady(false);
       lastMessageRef.current = '';
 
     } catch (err) {
       // Log do erro mas não mostrar para o usuário
-      console.error('Erro ao finalizar chat:', err);
+      // console.error('Erro ao finalizar chat:', err);
     }
   }, []);
 
@@ -266,6 +277,7 @@ export const useChat = (): UseChatReturn => {
     endChat,
     isFirstInteraction,
     retryLastMessage,
-    clearError
+    clearError,
+    isSessionReady
   };
 }; 

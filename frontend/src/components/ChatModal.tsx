@@ -25,7 +25,8 @@ const ChatModal: React.FC<ChatModalProps> = ({
     sendMessage,
     endChat,
     retryLastMessage,
-    clearError
+    clearError,
+    isSessionReady
   } = useChat();
 
   useEffect(() => {
@@ -41,13 +42,13 @@ const ChatModal: React.FC<ChatModalProps> = ({
   }, [messages]);
 
   useEffect(() => {
-    // Focar no input quando modal abrir
-    if (modalVisible) {
+    // Focar no input quando modal abrir e sessão estiver pronta
+    if (modalVisible && isSessionReady) {
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     }
-  }, [modalVisible]);
+  }, [modalVisible, isSessionReady]);
 
   const handleClose = useCallback(() => {
     setModalVisible(false);
@@ -66,7 +67,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const message = inputValue.trim();
-    if (!message || isLoading) return;
+    if (!message || isLoading || !isSessionReady) return;
 
     setInputValue('');
     await sendMessage(message);
@@ -91,25 +92,36 @@ const ChatModal: React.FC<ChatModalProps> = ({
     });
   };
 
-  if (!modalVisible) return null;
+  if (!modalVisible) {
+    return null;
+  }
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4"
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}
       onClick={handleOverlayClick}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
+      <div 
+        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col backdrop-blur-sm"
+        style={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxWidth: '64rem', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-            <h2 className="text-white text-lg font-semibold">
-              /-HALL-DEV Assistant
-            </h2>
+        <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-t-2xl">
+          <div className="flex items-center space-x-4">
+            <div className={`w-3 h-3 rounded-full ${isSessionReady ? 'bg-cyan-400 animate-pulse' : 'bg-yellow-400 animate-pulse'}`}></div>
+            <div>
+              <h2 className="text-cyan-400 text-xl font-bold">
+                /-HALL-DEV Assistant
+              </h2>
+              <p className="text-gray-400 text-sm">
+                {isSessionReady ? 'Pronto para conversar' : 'Inicializando...'}
+              </p>
+            </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold transition-colors"
+            className="text-gray-400 hover:text-cyan-400 text-3xl font-bold transition-colors duration-200"
             aria-label="Fechar chat"
           >
             ×
@@ -117,11 +129,12 @@ const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[60vh]">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[60vh] bg-gray-900">
           {messages.length === 0 && !isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
-              <p className="text-gray-400 mt-4">Iniciando conversa...</p>
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+              <p className="text-cyan-400 text-lg font-medium">Iniciando conversa...</p>
+              <p className="text-gray-400 text-sm mt-2">Preparando o assistente para você</p>
             </div>
           ) : (
             messages.map((message, index) => (
@@ -130,15 +143,31 @@ const ChatModal: React.FC<ChatModalProps> = ({
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  className={`max-w-[85%] rounded-2xl px-6 py-4 ${
                     message.role === 'user'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-700 text-gray-100'
+                      ? 'bg-cyan-600 text-white shadow-lg'
+                      : 'bg-gray-800 border border-gray-700 text-cyan-400 shadow-lg'
                   }`}
+                  style={{
+                    ...(message.role === 'assistant' && {
+                      color: '#00e5ff',
+                      backgroundColor: '#1f2937',
+                      border: '1px solid #374151'
+                    })
+                  }}
                 >
-                  <div className="whitespace-pre-wrap">{message.content}</div>
-                  <div className={`text-xs mt-1 ${
-                    message.role === 'user' ? 'text-green-200' : 'text-gray-400'
+                  <div 
+                    className="whitespace-pre-wrap text-base leading-relaxed"
+                    style={{
+                      ...(message.role === 'assistant' && {
+                        color: '#00e5ff'
+                      })
+                    }}
+                  >
+                    {message.content}
+                  </div>
+                  <div className={`text-xs mt-3 ${
+                    message.role === 'user' ? 'text-cyan-200' : 'text-gray-500'
                   }`}>
                     {formatTime(message.timestamp)}
                   </div>
@@ -150,14 +179,14 @@ const ChatModal: React.FC<ChatModalProps> = ({
           {/* Loading indicator */}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-700 text-gray-100 rounded-lg px-4 py-2">
-                <div className="flex items-center space-x-2">
+              <div className="bg-gray-800 border border-gray-700 text-cyan-400 rounded-2xl px-6 py-4 shadow-lg">
+                <div className="flex items-center space-x-3">
                   <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm">Digitando...</span>
+                  <span className="text-sm font-medium">Digitando...</span>
                 </div>
               </div>
             </div>
@@ -166,11 +195,11 @@ const ChatModal: React.FC<ChatModalProps> = ({
           {/* Error message with retry button */}
           {error && (
             <div className="flex justify-start">
-              <div className="bg-red-600 text-white rounded-lg px-4 py-2 max-w-[80%]">
-                <div className="text-sm mb-2">⚠️ {error}</div>
+              <div className="bg-red-900 border border-red-700 text-white rounded-2xl px-6 py-4 max-w-[85%] shadow-lg">
+                <div className="text-sm mb-3 font-medium">⚠️ {error}</div>
                 <button
                   onClick={handleRetry}
-                  className="text-xs bg-red-700 hover:bg-red-800 px-3 py-1 rounded transition-colors"
+                  className="text-xs bg-red-700 hover:bg-red-600 px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
                 >
                   Tentar Novamente
                 </button>
@@ -182,22 +211,22 @@ const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Input Form */}
-        <div className="p-4 border-t border-gray-700">
-          <form onSubmit={handleSubmit} className="flex space-x-3">
+        <div className="p-6 border-t border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-b-2xl">
+          <form onSubmit={handleSubmit} className="flex space-x-4">
             <input
               ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Digite sua mensagem..."
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50"
+              placeholder={isSessionReady ? "Digite sua mensagem..." : "Inicializando chat..."}
+              disabled={isLoading || !isSessionReady}
+              className="flex-1 px-6 py-4 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 disabled:opacity-50 text-base transition-all duration-200"
             />
             <button
               type="submit"
-              disabled={!inputValue.trim() || isLoading}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              disabled={!inputValue.trim() || isLoading || !isSessionReady}
+              className="px-8 py-4 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 font-medium text-base"
             >
               Enviar
             </button>
