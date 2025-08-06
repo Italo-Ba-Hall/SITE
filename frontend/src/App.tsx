@@ -1,23 +1,20 @@
 import React from 'react';
 import './App.css';
-import BackgroundCanvas from './components/BackgroundCanvas';
-import AnimationIntro from './components/AnimationIntro';
 import MainContent from './components/MainContent';
-import ResultModal from './components/ResultModal';
-import Navbar from './components/Navbar';
-import ErrorBoundary from './components/ErrorBoundary';
+import AdminAccess from './components/AdminAccess';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 function App() {
   return (
-    <ErrorBoundary>
-      <div className="App" style={{backgroundColor: '#080808', minHeight: '100vh'}}>
-        <Navbar />
-        <BackgroundCanvas />
-        <AnimationIntro />
-        <MainContent />
-        <ResultModal />
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<MainContent />} />
+        </Routes>
+        {/* Acesso administrativo secreto - não aparece na navegação */}
+        <AdminAccess />
       </div>
-    </ErrorBoundary>
+    </Router>
   );
 }
 

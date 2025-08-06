@@ -17,6 +17,8 @@ import os # Added for os.getenv
 from schemas import *
 from llm_service import llm_service
 from chat_manager import chat_manager
+from database import db_manager
+from notification_service import notification_service
 import groq # Added for groq test
 
 # Inicializar FastAPI
@@ -451,80 +453,212 @@ async def detailed_health_check():
             "timestamp": datetime.now().isoformat()
         }
 
-# === ENDPOINTS DE TESTE ===
+# === ENDPOINTS DE DASHBOARD E GERENCIAMENTO ===
 
-@app.post("/test/llm")
-async def test_llm_connection():
+@app.get("/dashboard/leads")
+async def get_leads_dashboard(status: Optional[str] = None, limit: int = 50):
     """
-    Testa a conexão com o LLM
+    Endpoint para dashboard de leads
     """
     try:
-        # Teste simples de geração de resposta
-        test_request = LLMRequest(
-            session_id="test_session",
-            message="Olá, como você está?",
-            context={"messages": []}
+        leads = db_manager.get_all_leads(status=status, limit=limit)
+        stats = db_manager.get_stats()
+        
+        return {
+            "leads": leads,
+            "stats": stats,
+            "total_leads": len(leads)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar leads: {str(e)}"
+        )
+
+@app.get("/dashboard/leads/{session_id}")
+async def get_lead_details(session_id: str):
+    """
+    Endpoint para detalhes de um lead específico
+    """
+    try:
+        lead = db_manager.get_lead(session_id)
+        if not lead:
+            raise HTTPException(
+                status_code=404,
+                detail="Lead não encontrado"
+            )
+        
+        return lead
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar lead: {str(e)}"
+        )
+
+@app.put("/dashboard/leads/{session_id}/status")
+async def update_lead_status(session_id: str, status: str, notes: Optional[str] = None):
+    """
+    Endpoint para atualizar status de um lead
+    """
+    try:
+        # Validar status
+        valid_statuses = ['new', 'contacted', 'qualified', 'converted', 'lost']
+        if status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Status inválido. Use um dos: {valid_statuses}"
+            )
+        
+        # Atualizar status
+        db_manager.update_lead_status(session_id, status, notes)
+        
+        # Recuperar dados do lead para notificação
+        lead_data = db_manager.get_lead(session_id)
+        if lead_data:
+            notification_service.notify_lead_status_change(lead_data, status)
+        
+        return {
+            "success": True,
+            "message": f"Status do lead atualizado para {status}",
+            "session_id": session_id,
+            "new_status": status
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao atualizar status: {str(e)}"
+        )
+
+@app.get("/dashboard/notifications")
+async def get_notifications(unread_only: bool = True):
+    """
+    Endpoint para recuperar notificações
+    """
+    try:
+        notifications = db_manager.get_notifications(unread_only=unread_only)
+        
+        return {
+            "notifications": notifications,
+            "total": len(notifications)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar notificações: {str(e)}"
+        )
+
+@app.put("/dashboard/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int):
+    """
+    Endpoint para marcar notificação como lida
+    """
+    try:
+        db_manager.mark_notification_read(notification_id)
+        
+        return {
+            "success": True,
+            "message": "Notificação marcada como lida",
+            "notification_id": notification_id
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao marcar notificação: {str(e)}"
+        )
+
+@app.get("/dashboard/stats")
+async def get_dashboard_stats():
+    """
+    Endpoint para estatísticas do dashboard
+    """
+    try:
+        db_stats = db_manager.get_stats()
+        chat_stats = chat_manager.get_session_stats()
+        llm_stats = llm_service.get_stats()
+        
+        return {
+            "database": db_stats,
+            "chat": chat_stats,
+            "llm": llm_stats,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar estatísticas: {str(e)}"
+        )
+
+@app.post("/dashboard/reports/daily")
+async def send_daily_report():
+    """
+    Endpoint para enviar relatório diário
+    """
+    try:
+        stats = db_manager.get_stats()
+        success = notification_service.send_daily_report(stats)
+        
+        return {
+            "success": success,
+            "message": "Relatório diário enviado" if success else "Erro ao enviar relatório",
+            "stats": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao enviar relatório: {str(e)}"
+        )
+
+# === ENDPOINTS DE TESTE E DESENVOLVIMENTO ===
+
+@app.post("/test/database")
+async def test_database():
+    """
+    Endpoint para testar conexão com banco de dados
+    """
+    try:
+        # Testar criação de lead de exemplo
+        test_lead = {
+            'name': 'Teste Lead',
+            'email': 'teste@exemplo.com',
+            'company': 'Empresa Teste',
+            'role': 'Desenvolvedor'
+        }
+        
+        lead_id = db_manager.save_lead(
+            session_id="test-session-123",
+            user_profile=test_lead,
+            conversation_summary="Conversa de teste",
+            pain_points=["Problema de performance", "Processos manuais"],
+            recommended_solutions=["Automação", "Dashboard BI"],
+            qualification_score=0.8
         )
         
-        response = await llm_service.generate_response(test_request)
+        # Recuperar lead
+        lead = db_manager.get_lead("test-session-123")
+        
+        # Testar notificações
+        notification_sent = notification_service.notify_new_lead(test_lead)
         
         return {
             "success": True,
-            "message": "Conexão com LLM funcionando",
-            "response_preview": response.message[:100] + "..." if len(response.message) > 100 else response.message,
-            "confidence": response.confidence,
-            "metadata": response.metadata
+            "message": "Teste de banco de dados realizado com sucesso",
+            "lead_id": lead_id,
+            "lead_data": lead,
+            "notification_sent": notification_sent
         }
         
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Erro na conexão com LLM"
-        }
-
-@app.post("/test/chat")
-async def test_chat_flow():
-    """
-    Testa o fluxo completo de chat
-    """
-    try:
-        # 1. Iniciar sessão
-        start_response = await start_chat(ChatStartRequest(
-            initial_message="Teste de fluxo",
-            user_id="test_user"
-        ))
-        
-        # 2. Enviar mensagem
-        message_response = await send_message(LLMRequest(
-            session_id=start_response.session_id,
-            message="Este é um teste do sistema de chat",
-            context={"messages": []}
-        ))
-        
-        # 3. Finalizar sessão
-        end_response = await end_chat(ChatEndRequest(
-            session_id=start_response.session_id,
-            reason="test_completion"
-        ))
-        
-        return {
-            "success": True,
-            "message": "Fluxo de chat testado com sucesso",
-            "session_id": start_response.session_id,
-            "responses": {
-                "start": start_response.dict(),
-                "message": message_response.dict(),
-                "end": end_response.dict()
-            }
-        }
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Erro no teste do fluxo de chat"
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no teste de banco de dados: {str(e)}"
+        )
 
 # === EXECUÇÃO ===
 

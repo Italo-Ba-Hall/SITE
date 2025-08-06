@@ -360,6 +360,17 @@ Qual desafio você está enfrentando? Conte-me um pouco sobre sua situação atu
         """Retorna estatísticas do cache"""
         return self.cache.get_stats()
     
+    def get_stats(self) -> Dict:
+        """Retorna estatísticas gerais do LLM Service"""
+        return {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "cache_stats": self.cache.get_stats(),
+            "request_count": self.request_count,
+            "max_requests_per_minute": self.max_requests_per_minute
+        }
+    
     def clear_cache(self):
         """Limpa o cache"""
         self.cache.cache.clear()

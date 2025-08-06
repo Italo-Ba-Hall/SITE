@@ -14,6 +14,52 @@ interface ApiConfig {
 // Cache simples para evitar requisições desnecessárias
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 
+// Função utilitária para fazer chamadas de API
+export const apiCall = async <T>(
+  endpoint: string,
+  options: {
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    data?: Record<string, unknown>;
+    params?: Record<string, unknown>;
+  } = {}
+): Promise<T> => {
+  const { method = 'GET', data, params } = options;
+  
+  // Construir URL com parâmetros
+  let url = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${endpoint}`;
+  if (params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    });
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+  }
+
+  const config: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  if (data && method !== 'GET') {
+    config.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(url, config);
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 export const useApi = <T>(
   url: string,
   config: ApiConfig = {}
