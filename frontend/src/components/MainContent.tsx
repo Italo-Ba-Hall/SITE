@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSuggestions } from '../hooks/useApi';
 import SuggestionsDropdown from './SuggestionsDropdown';
+import ChatModal from './ChatModal';
 
 interface Suggestion {
   id: string;
@@ -13,6 +14,8 @@ const MainContent: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [isFirstInteraction, setIsFirstInteraction] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { suggestions, loading: suggestionsLoading, error: suggestionsError } = useSuggestions(inputValue);
@@ -55,7 +58,15 @@ const MainContent: React.FC = () => {
 
     setInputValue('');
     setShowSuggestions(false);
-    // API call would be handled by useSuggestions hook
+    
+    // Se for a primeira interação, abrir chat modal
+    if (isFirstInteraction) {
+      setIsFirstInteraction(false);
+      setShowChatModal(true);
+    } else {
+      // Comportamento original para sugestões
+      // API call would be handled by useSuggestions hook
+    }
   };
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
@@ -113,6 +124,13 @@ const MainContent: React.FC = () => {
           isLoading={suggestionsLoading}
           onSuggestionClick={handleSuggestionClick}
           onClose={handleCloseSuggestions}
+        />
+
+        {/* Chat Modal */}
+        <ChatModal
+          isVisible={showChatModal}
+          initialMessage={inputValue}
+          onClose={() => setShowChatModal(false)}
         />
       </div>
     </div>
