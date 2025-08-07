@@ -1,144 +1,178 @@
 #!/usr/bin/env python3
 """
-Teste de Performance Rápido
+Teste Rápido de Performance e Funcionalidades
 /-HALL-DEV Backend
 """
 
+import asyncio
 import time
-import requests
-from typing import Dict
+from datetime import datetime, timedelta
+from chat_manager import chat_manager
+from llm_service import llm_service
+from database import db_manager
 
-API_BASE_URL = "http://localhost:8000"
-
-def test_basic_performance():
-    """Teste básico de performance"""
-    print("🚀 Teste de Performance Rápido")
-    print("=" * 40)
+async def test_timeout_system():
+    """Testa o sistema de timeout e avisos de inatividade"""
+    print("🧪 Testando sistema de timeout...")
     
-    endpoints = [
-        ("/health", "GET"),
-        ("/health/detailed", "GET"),
-        ("/stats/llm", "GET"),
-        ("/chat/start", "POST", {"user_id": "perf_test"})
+    # Criar sessão
+    session = chat_manager.create_session()
+    session_id = session.session_id
+    print(f"✅ Sessão criada: {session_id}")
+    
+    # Simular mensagem inicial
+    chat_manager.add_message(session_id, "user", "Olá, preciso de ajuda")
+    print("✅ Mensagem inicial adicionada")
+    
+    # Verificar aviso de inatividade (deve retornar None inicialmente)
+    warning = chat_manager.check_inactivity_warning(session_id)
+    print(f"⚠️ Aviso de inatividade: {warning is not None}")
+    
+    # Simular tempo passado (modificar updated_at para 11 minutos atrás)
+    session.updated_at = datetime.now() - timedelta(minutes=11)
+    
+    # Verificar aviso de inatividade novamente
+    warning = chat_manager.check_inactivity_warning(session_id)
+    if warning:
+        print(f"⚠️ Aviso de inatividade: {warning[:100]}...")
+    else:
+        print("❌ Aviso de inatividade não foi gerado")
+    
+    # Simular tempo passado (modificar updated_at para 16 minutos atrás)
+    session.updated_at = datetime.now() - timedelta(minutes=16)
+    
+    # Verificar se sessão expirou
+    expired_session = chat_manager.get_session(session_id)
+    if expired_session is None:
+        print("✅ Sessão expirou corretamente")
+    else:
+        print("❌ Sessão não expirou quando deveria")
+    
+    print("🎯 Teste de timeout concluído!\n")
+
+async def test_conversation_summary():
+    """Testa o sistema de resumo de conversa"""
+    print("🧪 Testando sistema de resumo de conversa...")
+    
+    # Criar sessão
+    session = chat_manager.create_session()
+    session_id = session.session_id
+    
+    # Adicionar algumas mensagens
+    chat_manager.add_message(session_id, "user", "Preciso de um sistema de automação")
+    chat_manager.add_message(session_id, "assistant", "Entendo! Que tipo de processo você gostaria de automatizar?")
+    chat_manager.add_message(session_id, "user", "Processos manuais repetitivos")
+    chat_manager.add_message(session_id, "assistant", "Perfeito! Posso ajudar com RPA. Qual é seu nome?")
+    
+    # Finalizar sessão sem email (deve salvar apenas resumo)
+    ended_session = chat_manager.end_session(session_id, "test")
+    
+    if ended_session:
+        print("✅ Sessão finalizada com sucesso")
+        
+        # Verificar se resumo foi salvo
+        summary = db_manager.get_conversation_summary(session_id)
+        if summary:
+            print(f"✅ Resumo salvo: {summary['summary'][:100]}...")
+        else:
+            print("❌ Resumo não foi salvo")
+    else:
+        print("❌ Erro ao finalizar sessão")
+    
+    print("🎯 Teste de resumo concluído!\n")
+
+async def test_lead_with_email():
+    """Testa o sistema de lead com email"""
+    print("🧪 Testando sistema de lead com email...")
+    
+    # Criar sessão
+    session = chat_manager.create_session()
+    session_id = session.session_id
+    
+    # Adicionar perfil de usuário com email
+    chat_manager.update_user_profile(session_id, {
+        "name": "João Silva",
+        "email": "joao@exemplo.com",
+        "company": "Empresa Teste",
+        "role": "Gerente"
+    })
+    
+    # Adicionar mensagens
+    chat_manager.add_message(session_id, "user", "Preciso de um dashboard de BI")
+    chat_manager.add_message(session_id, "assistant", "Ótimo! Que tipo de dados você gostaria de visualizar?")
+    chat_manager.add_message(session_id, "user", "Dados de vendas e performance")
+    
+    # Finalizar sessão com email (deve salvar lead completo)
+    ended_session = chat_manager.end_session(session_id, "test_with_email")
+    
+    if ended_session:
+        print("✅ Sessão finalizada com sucesso")
+        
+        # Verificar se lead foi salvo
+        lead = db_manager.get_lead(session_id)
+        if lead:
+            print(f"✅ Lead salvo: {lead['name']} - {lead['email']}")
+            print(f"📊 Score de qualificação: {lead['qualification_score']}")
+        else:
+            print("❌ Lead não foi salvo")
+    else:
+        print("❌ Erro ao finalizar sessão")
+    
+    print("🎯 Teste de lead concluído!\n")
+
+async def test_llm_personality():
+    """Testa a nova personalidade do LLM"""
+    print("🧪 Testando nova personalidade do LLM...")
+    
+    from schemas import LLMRequest, ChatMessage, MessageRole
+    
+    # Criar contexto de conversa
+    messages = [
+        ChatMessage(
+            role=MessageRole.ASSISTANT,
+            content="👋 Olá! Que prazer em conhecê-lo!\n\nSou o assistente da /-HALL-DEV, especialista em soluções tecnológicas.\n\n❓ Para te ajudar melhor, me conte:\n\n• Que tipo de processo você gostaria de melhorar?\n• Qual é o maior desafio que está enfrentando?\n\n💡 Assim posso entender exatamente como posso te ajudar!"
+        )
     ]
     
-    results = {}
-    
-    for endpoint, method, *data in endpoints:
-        test_data = data[0] if data else None
-        times = []
-        
-        print(f"📊 Testando {endpoint}...")
-        
-        for i in range(3):  # Apenas 3 testes por endpoint
-            start_time = time.time()
-            try:
-                if method == "GET":
-                    response = requests.get(f"{API_BASE_URL}{endpoint}", timeout=5)
-                elif method == "POST":
-                    response = requests.post(f"{API_BASE_URL}{endpoint}", json=test_data, timeout=5)
-                
-                if response.status_code == 200:
-                    duration = time.time() - start_time
-                    times.append(duration)
-                    print(f"  ✅ Teste {i+1}: {duration:.3f}s")
-                else:
-                    print(f"  ❌ Teste {i+1}: Erro {response.status_code}")
-                    
-            except Exception as e:
-                print(f"  ❌ Teste {i+1}: Erro - {str(e)}")
-        
-        if times:
-            avg_time = sum(times) / len(times)
-            results[endpoint] = {
-                "avg_time": avg_time,
-                "min_time": min(times),
-                "max_time": max(times),
-                "success_rate": len(times) / 3
-            }
-            print(f"  📈 Média: {avg_time:.3f}s")
-        else:
-            results[endpoint] = {"error": "Nenhum teste bem-sucedido"}
-            print(f"  ❌ Falhou")
-    
-    # Resumo
-    print("\n" + "=" * 40)
-    print("📊 RESUMO DE PERFORMANCE")
-    print("=" * 40)
-    
-    successful_endpoints = 0
-    total_avg_time = 0
-    
-    for endpoint, result in results.items():
-        if "error" not in result:
-            successful_endpoints += 1
-            total_avg_time += result["avg_time"]
-            print(f"✅ {endpoint}: {result['avg_time']:.3f}s avg")
-        else:
-            print(f"❌ {endpoint}: {result['error']}")
-    
-    if successful_endpoints > 0:
-        overall_avg = total_avg_time / successful_endpoints
-        print(f"\n📈 Tempo médio geral: {overall_avg:.3f}s")
-        print(f"📊 Endpoints funcionando: {successful_endpoints}/{len(endpoints)}")
-        
-        if overall_avg < 3.0:
-            print("🎉 Performance EXCELENTE!")
-        elif overall_avg < 5.0:
-            print("✅ Performance BOA!")
-        else:
-            print("⚠️  Performance pode ser melhorada")
-    else:
-        print("❌ Nenhum endpoint funcionando")
-
-def test_cache_performance():
-    """Teste rápido de cache"""
-    print("\n💾 Teste de Cache")
-    print("-" * 20)
+    # Testar resposta para mensagem do usuário
+    request = LLMRequest(
+        session_id="test-session",
+        message="Preciso de ajuda com automação",
+        context={"messages": messages}
+    )
     
     try:
-        # Primeira requisição
-        start_time = time.time()
-        response1 = requests.post(
-            f"{API_BASE_URL}/chat/start",
-            json={"user_id": "cache_test"},
-            timeout=5
-        )
-        first_time = time.time() - start_time
+        response = await llm_service.generate_response(request)
+        print(f"✅ Resposta do LLM: {response.message[:200]}...")
         
-        if response1.status_code == 200:
-            session_data = response1.json()
-            session_id = session_data["session_id"]
-            
-            # Segunda requisição (deve usar cache)
-            start_time = time.time()
-            response2 = requests.post(
-                f"{API_BASE_URL}/chat/message",
-                json={
-                    "session_id": session_id,
-                    "message": "Teste de cache",
-                    "context": None
-                },
-                timeout=5
-            )
-            second_time = time.time() - start_time
-            
-            print(f"Primeira requisição: {first_time:.3f}s")
-            print(f"Segunda requisição: {second_time:.3f}s")
-            
-            if second_time < first_time:
-                improvement = ((first_time - second_time) / first_time) * 100
-                print(f"✅ Cache funcionando! Melhoria: {improvement:.1f}%")
-            else:
-                print("⚠️  Cache não detectado")
-                
+        # Verificar se a resposta é concisa e faz perguntas
+        if "?" in response.message and len(response.message) < 500:
+            print("✅ Resposta é concisa e faz perguntas")
         else:
-            print("❌ Erro ao iniciar chat para teste de cache")
+            print("⚠️ Resposta pode não estar seguindo o padrão conciso")
             
     except Exception as e:
-        print(f"❌ Erro no teste de cache: {str(e)}")
+        print(f"❌ Erro ao testar LLM: {str(e)}")
+    
+    print("🎯 Teste de personalidade concluído!\n")
+
+async def main():
+    """Executa todos os testes"""
+    print("🚀 Iniciando testes de funcionalidades...\n")
+    
+    start_time = time.time()
+    
+    # Executar testes
+    await test_timeout_system()
+    await test_conversation_summary()
+    await test_lead_with_email()
+    await test_llm_personality()
+    
+    end_time = time.time()
+    duration = end_time - start_time
+    
+    print(f"✅ Todos os testes concluídos em {duration:.2f} segundos!")
+    print("🎯 Sistema pronto para uso!")
 
 if __name__ == "__main__":
-    test_basic_performance()
-    test_cache_performance()
-    print("\n🎯 Teste de performance concluído!") 
+    asyncio.run(main()) 

@@ -9,6 +9,7 @@ import uuid
 import hashlib
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+from collections import OrderedDict
 import groq
 from dotenv import load_dotenv
 
@@ -21,7 +22,7 @@ class LLMCache:
     """Sistema de cache para respostas do LLM"""
     
     def __init__(self, max_size: int = 1000, ttl_hours: int = 24):
-        self.cache: Dict[str, Dict] = {}
+        self.cache: OrderedDict[str, Dict] = OrderedDict()
         self.max_size = max_size
         self.ttl = timedelta(hours=ttl_hours)
     
@@ -36,6 +37,8 @@ class LLMCache:
         if key in self.cache:
             cached = self.cache[key]
             if datetime.now() - cached["timestamp"] < self.ttl:
+                # Mover para o final (LRU)
+                self.cache.move_to_end(key)
                 return cached["response"]
             else:
                 del self.cache[key]
@@ -44,14 +47,15 @@ class LLMCache:
     def set(self, key: str, response: LLMResponse):
         """Armazena resposta no cache"""
         if len(self.cache) >= self.max_size:
-            # Remove item mais antigo
-            oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k]["timestamp"])
-            del self.cache[oldest_key]
+            # Remove item mais antigo (primeiro da OrderedDict) - O(1)
+            self.cache.popitem(last=False)
         
         self.cache[key] = {
             "response": response,
             "timestamp": datetime.now()
         }
+        # Mover para o final (LRU)
+        self.cache.move_to_end(key)
     
     def clear_expired(self):
         """Remove itens expirados do cache"""
@@ -75,7 +79,12 @@ class LLMService:
     """Serviço para integração com Groq LLM"""
     
     def __init__(self):
-        self.client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
+        # Verificar se API key está definida
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY não está definida no ambiente")
+        
+        self.client = groq.Groq(api_key=api_key)
         # Modelo mais robusto: Llama-3-70B vs 8B anterior
         self.model = "llama3-70b-8192"  # Modelo premium gratuito do Groq
         self.max_tokens = 1500  # Aumentado para aproveitar modelo maior
@@ -93,16 +102,23 @@ class LLMService:
         self.system_prompt = """Você é um agente conversacional especializado da /-HALL-DEV, uma empresa de soluções tecnológicas.
 
 PERSONALIDADE:
-- Educado, caloroso e profissional
-- Direto e objetivo nas respostas
-- Orientado a soluções e resultados
-- Focado em entender a dor do cliente
+- EXTREMAMENTE CONCISO: Máximo 2-3 frases por resposta
+- DIRETO AO PONTO: Sem explicações desnecessárias
+- PERGUNTADOR ESTRATÉGICO: Foque apenas em fazer perguntas específicas
+- NATURAL: Conduza a conversa de forma orgânica
 
-OBJETIVOS:
-1. Entender o problema/dor do usuário
-2. Coletar nome e email de forma natural durante a conversa
-3. Direcionar para soluções de código/tecnologia
-4. Qualificar leads efetivamente
+ESTRATÉGIA DE ABORDAGEM:
+1. PRIMEIRO PERGUNTE: Sempre comece com perguntas específicas
+2. ENTENDA A DOR: Descubra qual problema o usuário precisa resolver
+3. COLETE DADOS NATURALMENTE: Nome e email durante a conversa
+4. SUGIRA REUNIÃO: Termine propondo agendamento flexível
+
+PERGUNTAS ESTRATÉGICAS PARA USAR:
+- "Que tipo de processo você gostaria de melhorar?"
+- "Qual é o maior desafio que você está enfrentando?"
+- "Como isso está impactando seus resultados?"
+- "Que tipo de solução você imagina que resolveria isso?"
+- "Qual seria o impacto ideal para sua empresa?"
 
 SERVIÇOS DA EMPRESA:
 - Desenvolvimento de Software
@@ -111,8 +127,8 @@ SERVIÇOS DA EMPRESA:
 - Automação e RPA
 - Inteligência Artificial
 
-INSTRUÇÕES DE FORMATAÇÃO:
-IMPORTANTE: Use formatação visual para tornar suas respostas mais amigáveis e legíveis:
+INSTRUÇÕES DE FORMATAÇÃO OBRIGATÓRIAS:
+IMPORTANTE: SEMPRE use formatação visual para tornar suas respostas mais amigáveis e legíveis:
 
 1. EMOJIS: Use emojis relevantes para tornar o texto mais humano e amigável
    - ✅ Para confirmações
@@ -123,43 +139,44 @@ IMPORTANTE: Use formatação visual para tornar suas respostas mais amigáveis e
    - 👋 Para saudações
    - 📧 Para contatos
    - ⚡ Para urgência/eficiência
+   - 🤖 Para automação/bots
+   - 📅 Para agendamentos
+   - 👥 Para equipes/pessoas
+   - ❓ Para perguntas
 
-2. ESTRUTURA VISUAL:
-   - Use quebras de linha para separar ideias
+2. ESTRUTURA VISUAL OBRIGATÓRIA:
+   - SEMPRE use quebras de linha (\\n) para separar ideias
    - Crie tópicos com • ou - para listas
+   - Use espaçamento adequado entre seções
    - Destaque informações importantes
-   - Use espaçamento para melhor legibilidade
+   - SEMPRE pule uma linha antes de listas ou tópicos
 
-3. EXEMPLO DE FORMATAÇÃO:
+3. EXEMPLO DE FORMATAÇÃO CORRETA:
 ```
 👋 Olá! Que prazer em conhecê-lo!
 
-💡 Entendi sua necessidade. Vamos trabalhar juntos para:
+❓ Para te ajudar melhor, me conte:
 
-• Reduzir custos operacionais
-• Melhorar a eficiência dos processos
-• Implementar soluções tecnológicas
+• Que tipo de processo você gostaria de melhorar?
+• Qual é o maior desafio que está enfrentando?
 
-🔧 Baseado no que você mencionou, posso sugerir:
-
-1. Análise do sistema atual
-2. Proposta de otimização
-3. Implementação de melhorias
-
-📧 Para continuarmos, pode me informar:
-• Seu nome
-• Email para contato
+💡 Assim posso entender exatamente como posso te ajudar!
 ```
 
-4. REGRAS IMPORTANTES:
-- Sempre seja amigável e profissional
+4. REGRAS OBRIGATÓRIAS:
+- SEMPRE use \\n para quebras de linha
+- SEMPRE pule uma linha antes de listas
 - Use emojis com moderação (não exagere)
 - Mantenha o texto bem estruturado
 - Faça perguntas específicas
 - Colete dados naturalmente durante a conversa
+- SEMPRE formate listas com quebras de linha adequadas
+- SEJA EXTREMAMENTE CONCISO: Máximo 2-3 frases
+- FOCE EM PERGUNTAR: Mais perguntas, menos explicações
+- NUNCA IGNORE A PRIMEIRA MENSAGEM: Sempre responda ao conteúdo específico
 
 FORMATO DE RESPOSTA:
-Responda de forma natural, amigável e bem estruturada. Use emojis e formatação visual para tornar a experiência mais agradável."""
+Responda de forma natural, amigável e bem estruturada. Use emojis e formatação visual para tornar a experiência mais agradável. SEMPRE aplique quebras de linha adequadas. SEJA EXTREMAMENTE CONCISO E DIRETO. NUNCA IGNORE O CONTEÚDO DA PRIMEIRA MENSAGEM DO USUÁRIO."""
 
     def _check_rate_limit(self) -> bool:
         """Verifica se não excedeu o rate limit"""
@@ -249,6 +266,15 @@ Responda de forma natural, amigável e bem estruturada. Use emojis e formataçã
     async def generate_response(self, request: LLMRequest) -> LLMResponse:
         """Gera resposta usando Groq LLM com cache e otimizações"""
         try:
+            # Validar entrada
+            if not request.message or not request.message.strip():
+                return LLMResponse(
+                    message="Por favor, digite uma mensagem para que eu possa te ajudar.",
+                    session_id=request.session_id,
+                    confidence=0.0,
+                    metadata={"error": "empty_message"}
+                )
+            
             # Verificar rate limit
             if not self._check_rate_limit():
                 return LLMResponse(
@@ -339,18 +365,12 @@ Responda de forma natural, amigável e bem estruturada. Use emojis e formataçã
         """Cria mensagem de boas-vindas personalizada"""
         return """👋 Olá! Que prazer em conhecê-lo!
 
-Sou o assistente da /-HALL-DEV, especialista em soluções tecnológicas.
+❓ Para te ajudar melhor, me conte:
 
-💡 Estou aqui para entender como posso ajudar você ou sua empresa a:
+• Que tipo de processo você gostaria de melhorar?
+• Qual é o maior desafio que está enfrentando?
 
-• Reduzir custos operacionais
-• Aumentar a precisão e eficiência  
-• Elevar o padrão tecnológico
-• Automatizar processos
-
-🎯 Como posso te ajudar hoje? 
-
-Qual desafio você está enfrentando? Conte-me um pouco sobre sua situação atual!"""
+💡 Assim posso entender exatamente como posso te ajudar!"""
 
     def create_session_id(self) -> str:
         """Cria ID único para sessão"""
@@ -373,11 +393,22 @@ Qual desafio você está enfrentando? Conte-me um pouco sobre sua situação atu
     
     def clear_cache(self):
         """Limpa o cache"""
-        self.cache.cache.clear()
+        self.cache.clear()
     
     def cleanup_cache(self):
         """Remove itens expirados do cache"""
         self.cache.clear_expired()
+    
+    def auto_cleanup_cache(self):
+        """Limpeza automática do cache - chamar periodicamente"""
+        if len(self.cache.cache) > self.cache.max_size * 0.8:  # Se 80% cheio
+            self.cache.clear_expired()
+            # Se ainda estiver cheio, remover 20% dos itens mais antigos
+            if len(self.cache.cache) > self.cache.max_size * 0.8:
+                items_to_remove = int(len(self.cache.cache) * 0.2)
+                for _ in range(items_to_remove):
+                    if self.cache.cache:
+                        self.cache.cache.popitem(last=False)
 
 # Instância global do serviço
 llm_service = LLMService() 

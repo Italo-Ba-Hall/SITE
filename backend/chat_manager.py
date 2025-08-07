@@ -16,7 +16,9 @@ class ChatManager:
     
     def __init__(self):
         self.sessions: Dict[str, ChatSession] = {}
-        self.session_timeout = timedelta(hours=2)  # 2 horas de timeout
+        self.session_timeout = timedelta(minutes=15)  # 15 minutos de timeout
+        self.warning_timeout = timedelta(minutes=10)  # Aviso após 10 minutos
+        self.inactivity_warnings: Dict[str, datetime] = {}  # Controle de avisos
     
     def create_session(self, user_id: Optional[str] = None) -> ChatSession:
         """Cria uma nova sessão de chat"""
@@ -54,6 +56,30 @@ class ChatManager:
         
         return None
     
+    def check_inactivity_warning(self, session_id: str) -> Optional[str]:
+        """Verifica se deve enviar aviso de inatividade"""
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        
+        time_since_update = datetime.now() - session.updated_at
+        
+        # Se passou 10 minutos e ainda não foi enviado aviso
+        if (time_since_update > self.warning_timeout and 
+            session_id not in self.inactivity_warnings):
+            
+            self.inactivity_warnings[session_id] = datetime.now()
+            
+            # Calcular tempo restante
+            remaining_minutes = int((self.session_timeout - time_since_update).total_seconds() / 60)
+            
+            return f"⚠️ Olá! Notei que você está inativo há alguns minutos.\n\n" \
+                   f"💡 Para continuarmos nossa conversa, você tem mais {remaining_minutes} minutos.\n\n" \
+                   f"📧 Caso precise de mais tempo, posso salvar seu contato para retomarmos depois.\n\n" \
+                   f"O que gostaria de fazer?"
+        
+        return None
+    
     def add_message(self, session_id: str, role: MessageRole, content: str, metadata: Optional[Dict] = None) -> bool:
         """Adiciona uma mensagem à sessão"""
         session = self.get_session(session_id)
@@ -68,6 +94,10 @@ class ChatManager:
         
         session.messages.append(message)
         session.updated_at = datetime.now()
+        
+        # Remover aviso de inatividade se usuário respondeu
+        if session_id in self.inactivity_warnings:
+            del self.inactivity_warnings[session_id]
         
         return True
     
@@ -94,6 +124,10 @@ class ChatManager:
         session.is_active = False
         session.updated_at = datetime.now()
         
+        # Remover aviso de inatividade
+        if session_id in self.inactivity_warnings:
+            del self.inactivity_warnings[session_id]
+        
         # Salvar conversa no banco de dados
         if session.messages:
             messages_data = []
@@ -109,11 +143,14 @@ class ChatManager:
         
         # Salvar lead se tiver dados suficientes
         if session.user_profile and session.user_profile.get('email'):
-            self._save_lead_from_session(session)
+            self._save_lead_from_session(session, save_full_conversation=True)
+        else:
+            # Se não tem email, salvar apenas resumo
+            self._save_conversation_summary_only(session)
         
         return session
     
-    def _save_lead_from_session(self, session: ChatSession):
+    def _save_lead_from_session(self, session: ChatSession, save_full_conversation: bool = True):
         """Salva lead baseado nos dados da sessão"""
         try:
             # Gerar resumo da conversa
@@ -135,7 +172,8 @@ class ChatManager:
                 conversation_summary=conversation_summary,
                 pain_points=pain_points,
                 recommended_solutions=recommended_solutions,
-                qualification_score=qualification_score
+                qualification_score=qualification_score,
+                full_conversation=session.messages if save_full_conversation else None
             )
             
             # Notificar equipe
@@ -156,6 +194,33 @@ class ChatManager:
             
         except Exception as e:
             print(f"❌ Erro ao salvar lead: {str(e)}")
+    
+    def _save_conversation_summary_only(self, session: ChatSession):
+        """Salva apenas resumo da conversa quando não há email"""
+        try:
+            # Gerar resumo conciso
+            summary = self._generate_conversation_summary(session)
+            
+            # Detectar intenções principais
+            intents = []
+            for msg in session.messages:
+                if msg.role == MessageRole.USER:
+                    intent = llm_service._detect_intent(msg.content)
+                    if intent:
+                        intents.append(intent)
+            
+            # Salvar apenas resumo
+            db_manager.save_conversation_summary(
+                session_id=session.session_id,
+                summary=summary,
+                intents=list(set(intents)),
+                duration_minutes=(session.updated_at - session.created_at).total_seconds() / 60
+            )
+            
+            print(f"✅ Resumo de conversa salvo para sessão: {session.session_id}")
+            
+        except Exception as e:
+            print(f"❌ Erro ao salvar resumo: {str(e)}")
     
     def _generate_conversation_summary(self, session: ChatSession) -> str:
         """Gera um resumo da conversa"""

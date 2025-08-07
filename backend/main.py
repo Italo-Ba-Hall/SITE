@@ -277,11 +277,11 @@ async def send_message(request: LLMRequest):
             request.message
         )
         
-        # Gerar resposta do LLM
+        # Gerar resposta do LLM com contexto completo
         llm_request = LLMRequest(
             session_id=request.session_id,
             message=request.message,
-            context={"messages": session.messages[:-1]}  # Excluir mensagem atual
+            context={"messages": session.messages}  # Incluir TODAS as mensagens
         )
         
         response = await llm_service.generate_response(llm_request)
@@ -308,6 +308,40 @@ async def send_message(request: LLMRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao processar mensagem: {str(e)}"
+        )
+
+@app.get("/chat/inactivity-check/{session_id}")
+async def check_inactivity(session_id: str):
+    """
+    Verifica se deve enviar aviso de inatividade
+    """
+    try:
+        warning_message = chat_manager.check_inactivity_warning(session_id)
+        
+        if warning_message:
+            # Adicionar aviso como mensagem do sistema
+            chat_manager.add_message(
+                session_id,
+                MessageRole.ASSISTANT,
+                warning_message
+            )
+            
+            return {
+                "should_warn": True,
+                "warning_message": warning_message,
+                "session_id": session_id
+            }
+        
+        return {
+            "should_warn": False,
+            "warning_message": None,
+            "session_id": session_id
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao verificar inatividade: {str(e)}"
         )
 
 @app.get("/chat/session/{session_id}")
@@ -592,6 +626,46 @@ async def get_dashboard_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao recuperar estatísticas: {str(e)}"
+        )
+
+@app.get("/dashboard/conversation-summaries")
+async def get_conversation_summaries(limit: int = 50):
+    """
+    Endpoint para recuperar resumos de conversa
+    """
+    try:
+        summaries = db_manager.get_all_conversation_summaries(limit=limit)
+        
+        return {
+            "summaries": summaries,
+            "total": len(summaries)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar resumos: {str(e)}"
+        )
+
+@app.get("/dashboard/conversation-summaries/{session_id}")
+async def get_conversation_summary_details(session_id: str):
+    """
+    Endpoint para detalhes de um resumo de conversa específico
+    """
+    try:
+        summary = db_manager.get_conversation_summary(session_id)
+        if not summary:
+            raise HTTPException(
+                status_code=404,
+                detail="Resumo de conversa não encontrado"
+            )
+        
+        return summary
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar resumo: {str(e)}"
         )
 
 @app.post("/dashboard/reports/daily")

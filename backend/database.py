@@ -67,6 +67,18 @@ class DatabaseManager:
                 )
             """)
             
+            # Tabela de resumos de conversa
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_summaries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT UNIQUE NOT NULL,
+                    summary TEXT NOT NULL,
+                    intents TEXT,  -- JSON array
+                    duration_minutes REAL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             # Índices para performance
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_leads_session_id ON leads(session_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email)")
@@ -79,7 +91,8 @@ class DatabaseManager:
     
     def save_lead(self, session_id: str, user_profile: Dict[str, Any], 
                   conversation_summary: str, pain_points: List[str], 
-                  recommended_solutions: List[str], qualification_score: float = 0.0) -> int:
+                  recommended_solutions: List[str], qualification_score: float = 0.0,
+                  full_conversation: Optional[List] = None) -> int:
         """Salva um novo lead no banco de dados"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -135,6 +148,82 @@ class DatabaseManager:
                 ))
             
             conn.commit()
+    
+    def save_conversation_summary(self, session_id: str, summary: str, 
+                                intents: List[str], duration_minutes: float):
+        """Salva apenas um resumo da conversa quando não há email"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # Criar tabela de resumos se não existir
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_summaries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT UNIQUE NOT NULL,
+                    summary TEXT NOT NULL,
+                    intents TEXT,  -- JSON array
+                    duration_minutes REAL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                INSERT OR REPLACE INTO conversation_summaries (
+                    session_id, summary, intents, duration_minutes, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+            """, (
+                session_id,
+                summary,
+                json.dumps(intents),
+                duration_minutes,
+                datetime.now()
+            ))
+            
+            conn.commit()
+    
+    def get_conversation_summary(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Recupera resumo de conversa"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT * FROM conversation_summaries WHERE session_id = ?
+            """, (session_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                columns = [desc[0] for desc in cursor.description]
+                summary_data = dict(zip(columns, row))
+                
+                # Converter JSON strings de volta para objetos
+                summary_data['intents'] = json.loads(summary_data['intents'] or '[]')
+                
+                return summary_data
+            
+            return None
+    
+    def get_all_conversation_summaries(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Recupera todos os resumos de conversa"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT * FROM conversation_summaries 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            """, (limit,))
+            
+            summaries = []
+            for row in cursor.fetchall():
+                columns = [desc[0] for desc in cursor.description]
+                summary_data = dict(zip(columns, row))
+                
+                # Converter JSON strings de volta para objetos
+                summary_data['intents'] = json.loads(summary_data['intents'] or '[]')
+                
+                summaries.append(summary_data)
+            
+            return summaries
     
     def get_lead(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Recupera um lead pelo session_id"""
@@ -279,15 +368,25 @@ class DatabaseManager:
             cursor.execute("SELECT COUNT(*) FROM conversations")
             total_conversations = cursor.fetchone()[0]
             
+            # Total de resumos de conversa
+            cursor.execute("SELECT COUNT(*) FROM conversation_summaries")
+            total_summaries = cursor.fetchone()[0]
+            
             # Notificações não lidas
             cursor.execute("SELECT COUNT(*) FROM notifications WHERE is_read = FALSE")
             unread_notifications = cursor.fetchone()[0]
+            
+            # Média de duração das conversas (resumos)
+            cursor.execute("SELECT AVG(duration_minutes) FROM conversation_summaries")
+            avg_duration = cursor.fetchone()[0] or 0
             
             return {
                 "total_leads": total_leads,
                 "leads_by_status": leads_by_status,
                 "total_conversations": total_conversations,
-                "unread_notifications": unread_notifications
+                "total_summaries": total_summaries,
+                "unread_notifications": unread_notifications,
+                "avg_conversation_duration": round(avg_duration, 2)
             }
 
 # Instância global do banco de dados

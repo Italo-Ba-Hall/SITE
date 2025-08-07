@@ -89,6 +89,18 @@ const MainContent: React.FC = () => {
     });
   };
 
+  const formatAssistantMessage = (content: string) => {
+    // Garantir que quebras de linha sejam respeitadas
+    return content
+      .split('\n')
+      .map((line, index) => (
+        <React.Fragment key={index}>
+          {line}
+          {index < content.split('\n').length - 1 && <br />}
+        </React.Fragment>
+      ));
+  };
+
   return (
     <div id="mainContent" className={`content ${isVisible ? 'visible' : ''}`}>
       <div className="logo">/-HALL-DEV</div>
@@ -118,7 +130,7 @@ const MainContent: React.FC = () => {
           <div className="chat-interface mt-6 max-w-4xl mx-auto">
             <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl backdrop-blur-sm">
               {/* Header */}
-              <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-t-2xl">
+              <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-t-2xl sticky top-0 z-10">
                 <div className="flex items-center space-x-4">
                   <div className={`w-3 h-3 rounded-full ${isSessionReady ? 'bg-cyan-400 animate-pulse' : 'bg-yellow-400 animate-pulse'}`}></div>
                   <div>
@@ -130,17 +142,31 @@ const MainContent: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={handleCloseChat}
-                  className="text-gray-400 hover:text-cyan-400 text-3xl font-bold transition-colors duration-200"
-                  aria-label="Fechar chat"
-                >
-                  ×
-                </button>
+                <div className="flex items-center space-x-3">
+                  <div className="text-xs text-gray-500">
+                    {messages.length > 0 && `${messages.length} mensagens`}
+                  </div>
+                  <button
+                    onClick={handleCloseChat}
+                    className="text-gray-400 hover:text-cyan-400 text-3xl font-bold transition-colors duration-200"
+                    aria-label="Fechar chat"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
 
               {/* Messages Container */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[60vh] bg-gray-900">
+              <div 
+                className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-900 messages-container" 
+                style={{ 
+                  maxHeight: '60vh', 
+                  minHeight: '300px',
+                  overflowY: 'auto',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#374151 #1f2937'
+                }}
+              >
                 {messages.length === 0 && !isLoading ? (
                   <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
@@ -168,14 +194,17 @@ const MainContent: React.FC = () => {
                         }}
                       >
                         <div 
-                          className="whitespace-pre-wrap text-base leading-relaxed"
+                          className="whitespace-pre-wrap text-base leading-relaxed break-words"
                           style={{
                             ...(message.role === 'assistant' && {
                               color: '#00e5ff'
                             })
                           }}
                         >
-                          {message.content}
+                          {message.role === 'assistant' 
+                            ? formatAssistantMessage(message.content)
+                            : message.content
+                          }
                         </div>
                         <div className={`text-xs mt-3 ${
                           message.role === 'user' ? 'text-cyan-200' : 'text-gray-500'

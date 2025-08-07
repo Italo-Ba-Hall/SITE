@@ -26,7 +26,9 @@ const ChatModal: React.FC<ChatModalProps> = ({
     endChat,
     retryLastMessage,
     clearError,
-    isSessionReady
+    isSessionReady,
+    inactivityWarning,
+    sessionExpired
   } = useChat();
 
   useEffect(() => {
@@ -49,6 +51,26 @@ const ChatModal: React.FC<ChatModalProps> = ({
       }, 100);
     }
   }, [modalVisible, isSessionReady]);
+
+  // Efeito para mostrar aviso de inatividade
+  useEffect(() => {
+    if (inactivityWarning) {
+      // Scroll para o final para mostrar o aviso
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [inactivityWarning]);
+
+  // Efeito para lidar com sessão expirada
+  useEffect(() => {
+    if (sessionExpired) {
+      // Mostrar notificação de sessão expirada
+      setTimeout(() => {
+        clearError();
+      }, 3000);
+    }
+  }, [sessionExpired, clearError]);
 
   const handleClose = useCallback(() => {
     setModalVisible(false);
@@ -92,6 +114,23 @@ const ChatModal: React.FC<ChatModalProps> = ({
     });
   };
 
+  const formatAssistantMessage = (content: string) => {
+    // Garantir que quebras de linha sejam respeitadas
+    return content
+      .split('\n')
+      .map((line, index) => (
+        <React.Fragment key={index}>
+          {line}
+          {index < content.split('\n').length - 1 && <br />}
+        </React.Fragment>
+      ));
+  };
+
+  // Função para determinar se uma mensagem é um aviso de inatividade
+  const isInactivityWarning = (content: string) => {
+    return content.includes('⚠️') && content.includes('inativo');
+  };
+
   if (!modalVisible) {
     return null;
   }
@@ -103,33 +142,62 @@ const ChatModal: React.FC<ChatModalProps> = ({
       onClick={handleOverlayClick}
     >
       <div 
-        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col backdrop-blur-sm"
-        style={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxWidth: '64rem', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full flex flex-col backdrop-blur-sm"
+        style={{ 
+          backgroundColor: '#111827', 
+          border: '1px solid #374151', 
+          borderRadius: '1rem', 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', 
+          maxWidth: '90vw',
+          width: '100%', 
+          maxHeight: '90vh', 
+          minHeight: '600px',
+          display: 'flex', 
+          flexDirection: 'column' 
+        }}
       >
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-t-2xl">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-t-2xl sticky top-0 z-10">
           <div className="flex items-center space-x-4">
-            <div className={`w-3 h-3 rounded-full ${isSessionReady ? 'bg-cyan-400 animate-pulse' : 'bg-yellow-400 animate-pulse'}`}></div>
+            <div className={`w-3 h-3 rounded-full ${
+              sessionExpired ? 'bg-red-400 animate-pulse' : 
+              isSessionReady ? 'bg-cyan-400 animate-pulse' : 'bg-yellow-400 animate-pulse'
+            }`}></div>
             <div>
               <h2 className="text-cyan-400 text-xl font-bold">
                 /-HALL-DEV Assistant
               </h2>
               <p className="text-gray-400 text-sm">
-                {isSessionReady ? 'Pronto para conversar' : 'Inicializando...'}
+                {sessionExpired ? 'Sessão expirada' : 
+                 isSessionReady ? 'Pronto para conversar' : 'Inicializando...'}
               </p>
             </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-cyan-400 text-3xl font-bold transition-colors duration-200"
-            aria-label="Fechar chat"
-          >
-            ×
-          </button>
+          <div className="flex items-center space-x-3">
+            <div className="text-xs text-gray-500">
+              {messages.length > 0 && `${messages.length} mensagens`}
+            </div>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-cyan-400 text-3xl font-bold transition-colors duration-200"
+              aria-label="Fechar chat"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[60vh] bg-gray-900">
+        <div 
+          className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-900 messages-container" 
+          style={{ 
+            maxHeight: 'calc(90vh - 200px)', 
+            minHeight: '400px',
+            overflowY: 'auto',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#374151 #1f2937'
+          }}
+        >
           {messages.length === 0 && !isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
@@ -146,28 +214,42 @@ const ChatModal: React.FC<ChatModalProps> = ({
                   className={`max-w-[85%] rounded-2xl px-6 py-4 ${
                     message.role === 'user'
                       ? 'bg-cyan-600 text-white shadow-lg'
+                      : isInactivityWarning(message.content)
+                      ? 'bg-yellow-900 border-2 border-yellow-600 text-yellow-100 shadow-lg animate-pulse'
                       : 'bg-gray-800 border border-gray-700 text-cyan-400 shadow-lg'
                   }`}
                   style={{
-                    ...(message.role === 'assistant' && {
+                    ...(message.role === 'assistant' && !isInactivityWarning(message.content) && {
                       color: '#00e5ff',
                       backgroundColor: '#1f2937',
                       border: '1px solid #374151'
+                    }),
+                    ...(isInactivityWarning(message.content) && {
+                      backgroundColor: '#78350f',
+                      border: '2px solid #d97706',
+                      color: '#fef3c7'
                     })
                   }}
                 >
                   <div 
-                    className="whitespace-pre-wrap text-base leading-relaxed"
+                    className="whitespace-pre-wrap text-base leading-relaxed break-words"
                     style={{
-                      ...(message.role === 'assistant' && {
+                      ...(message.role === 'assistant' && !isInactivityWarning(message.content) && {
                         color: '#00e5ff'
+                      }),
+                      ...(isInactivityWarning(message.content) && {
+                        color: '#fef3c7'
                       })
                     }}
                   >
-                    {message.content}
+                    {message.role === 'assistant' 
+                      ? formatAssistantMessage(message.content)
+                      : message.content
+                    }
                   </div>
                   <div className={`text-xs mt-3 ${
-                    message.role === 'user' ? 'text-cyan-200' : 'text-gray-500'
+                    message.role === 'user' ? 'text-cyan-200' : 
+                    isInactivityWarning(message.content) ? 'text-yellow-200' : 'text-gray-500'
                   }`}>
                     {formatTime(message.timestamp)}
                   </div>
@@ -211,7 +293,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Input Form */}
-        <div className="p-6 border-t border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-b-2xl">
+        <div className="p-6 border-t border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 rounded-b-2xl sticky bottom-0">
           <form onSubmit={handleSubmit} className="flex space-x-4">
             <input
               ref={inputRef}
@@ -219,14 +301,17 @@ const ChatModal: React.FC<ChatModalProps> = ({
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={isSessionReady ? "Digite sua mensagem..." : "Inicializando chat..."}
-              disabled={isLoading || !isSessionReady}
-              className="flex-1 px-6 py-4 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 disabled:opacity-50 text-base transition-all duration-200"
+              placeholder={
+                sessionExpired ? "Sessão expirada. Iniciando nova conversa..." :
+                isSessionReady ? "Digite sua mensagem..." : "Inicializando chat..."
+              }
+              disabled={isLoading || !isSessionReady || sessionExpired}
+              className="flex-1 px-6 py-4 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 disabled:opacity-50 text-base transition-all duration-200 min-w-0"
             />
             <button
               type="submit"
-              disabled={!inputValue.trim() || isLoading || !isSessionReady}
-              className="px-8 py-4 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 font-medium text-base"
+              disabled={!inputValue.trim() || isLoading || !isSessionReady || sessionExpired}
+              className="px-8 py-4 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 font-medium text-base whitespace-nowrap"
             >
               Enviar
             </button>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -24,6 +24,8 @@ interface UseChatReturn {
   retryLastMessage: () => Promise<void>;
   clearError: () => void;
   isSessionReady: boolean;
+  inactivityWarning: string | null;
+  sessionExpired: boolean;
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -33,6 +35,13 @@ const RETRY_CONFIG = {
   maxRetries: 3,
   retryDelay: 1000, // 1 segundo
   backoffMultiplier: 2
+};
+
+// Configurações de timeout
+const TIMEOUT_CONFIG = {
+  warningInterval: 10 * 60 * 1000, // 10 minutos
+  sessionTimeout: 15 * 60 * 1000, // 15 minutos
+  checkInterval: 30 * 1000, // Verificar a cada 30 segundos
 };
 
 // Função para delay
@@ -85,9 +94,14 @@ export const useChat = (): UseChatReturn => {
   const [error, setError] = useState<string | null>(null);
   const [isFirstInteraction, setIsFirstInteraction] = useState(true);
   const [isSessionReady, setIsSessionReady] = useState(false);
+  const [inactivityWarning, setInactivityWarning] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   
   const sessionRef = useRef<string | null>(null);
   const lastMessageRef = useRef<string>('');
+  const lastActivityRef = useRef<number>(Date.now());
+  const timeoutIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const warningShownRef = useRef<boolean>(false);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -98,6 +112,10 @@ export const useChat = (): UseChatReturn => {
       setIsLoading(true);
       setError(null);
       setIsSessionReady(false);
+      setSessionExpired(false);
+      setInactivityWarning(null);
+      warningShownRef.current = false;
+      lastActivityRef.current = Date.now();
 
       const response = await fetchWithRetry(`${API_BASE_URL}/chat/start`, {
         method: 'POST',
@@ -161,10 +179,22 @@ export const useChat = (): UseChatReturn => {
       return;
     }
 
+    // Verificar se sessão expirou
+    if (sessionExpired) {
+      setError('Sessão expirada. Iniciando nova conversa...');
+      await startChat();
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
       lastMessageRef.current = message;
+      lastActivityRef.current = Date.now();
+      
+      // Limpar avisos de inatividade quando usuário responde
+      setInactivityWarning(null);
+      warningShownRef.current = false;
 
       // Adicionar mensagem do usuário imediatamente
       const userMessage: ChatMessage = {
@@ -219,7 +249,7 @@ export const useChat = (): UseChatReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [isSessionReady]);
+  }, [isSessionReady, sessionExpired, startChat]);
 
   const retryLastMessage = useCallback(async () => {
     if (lastMessageRef.current) {
@@ -259,12 +289,91 @@ export const useChat = (): UseChatReturn => {
       sessionRef.current = null;
       setIsFirstInteraction(true);
       setIsSessionReady(false);
+      setSessionExpired(false);
+      setInactivityWarning(null);
+      warningShownRef.current = false;
       lastMessageRef.current = '';
+
+      // Limpar intervalo
+      if (timeoutIntervalRef.current) {
+        clearInterval(timeoutIntervalRef.current);
+        timeoutIntervalRef.current = null;
+      }
 
     } catch (err) {
       // Log do erro mas não mostrar para o usuário
       // console.error('Erro ao finalizar chat:', err);
     }
+  }, []);
+
+  // Função para verificar inatividade (movida para depois das outras funções)
+  const checkInactivity = useCallback(async () => {
+    if (!sessionRef.current || sessionExpired) {
+      return;
+    }
+
+    try {
+      const response = await fetchWithRetry(
+        `${API_BASE_URL}/chat/inactivity-check/${sessionRef.current}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.should_warn && data.warning_message && !warningShownRef.current) {
+          setInactivityWarning(data.warning_message);
+          warningShownRef.current = true;
+          
+          // Adicionar aviso como mensagem do sistema
+          const warningMessage: ChatMessage = {
+            role: 'assistant',
+            content: data.warning_message,
+            timestamp: new Date()
+          };
+          
+          setMessages(prev => [...prev, warningMessage]);
+        }
+      } else if (response.status === 404) {
+        // Sessão expirada
+        setSessionExpired(true);
+        setInactivityWarning('Sessão expirada. Iniciando nova conversa...');
+        
+        // Finalizar sessão atual e iniciar nova
+        await endChat();
+        await startChat();
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Erro ao verificar inatividade:', err);
+    }
+  }, [sessionExpired, endChat, startChat]);
+
+  // Configurar intervalo de verificação de inatividade
+  useEffect(() => {
+    if (isSessionReady && sessionRef.current) {
+      timeoutIntervalRef.current = setInterval(checkInactivity, TIMEOUT_CONFIG.checkInterval);
+      
+      return () => {
+        if (timeoutIntervalRef.current) {
+          clearInterval(timeoutIntervalRef.current);
+        }
+      };
+    }
+  }, [isSessionReady, checkInactivity]);
+
+  // Limpar intervalos quando componente desmontar
+  useEffect(() => {
+    return () => {
+      if (timeoutIntervalRef.current) {
+        clearInterval(timeoutIntervalRef.current);
+      }
+    };
   }, []);
 
   return {
@@ -278,6 +387,8 @@ export const useChat = (): UseChatReturn => {
     isFirstInteraction,
     retryLastMessage,
     clearError,
-    isSessionReady
+    isSessionReady,
+    inactivityWarning,
+    sessionExpired
   };
 }; 
