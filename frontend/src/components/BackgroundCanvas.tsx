@@ -64,10 +64,10 @@ const BackgroundCanvas: React.FC = () => {
     };
 
     const drawNumberRain = () => {
-      ctx.fillStyle = 'rgba(8, 8, 8, 0.1)';
+      ctx.fillStyle = 'rgba(8, 8, 8, 0.05)';
       ctx.fillRect(0, 0, width, height);
       ctx.font = '16px Roboto Mono';
-      ctx.fillStyle = 'rgba(0, 229, 255, 0.2)';
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.1)';
       
       for (const p of rainParticlesRef.current) {
         const char = Math.random() > 0.5 ? '0' : '1';
@@ -78,7 +78,7 @@ const BackgroundCanvas: React.FC = () => {
     };
 
     const drawPulsatingCircuits = () => {
-      ctx.fillStyle = 'rgba(8, 8, 8, 0.1)';
+      ctx.fillStyle = 'rgba(8, 8, 8, 0.05)';
       ctx.fillRect(0, 0, width, height);
 
       const particles = circuitParticlesRef.current;
@@ -92,7 +92,7 @@ const BackgroundCanvas: React.FC = () => {
 
         ctx.beginPath();
         ctx.arc(p1.x, p1.y, p1.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 229, 255, 0.8)';
+        ctx.fillStyle = 'rgba(0, 229, 255, 0.3)';
         ctx.fill();
 
         for (let j = i + 1; j < particles.length; j++) {
@@ -105,7 +105,7 @@ const BackgroundCanvas: React.FC = () => {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(0, 229, 255, ${1 - dist / 150})`;
+            ctx.strokeStyle = `rgba(0, 229, 255, ${0.3 - dist / 500})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }

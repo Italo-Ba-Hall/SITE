@@ -689,6 +689,140 @@ async def send_daily_report():
             detail=f"Erro ao enviar relatório: {str(e)}"
         )
 
+# === ENDPOINTS DE SALVAR CONVERSAS E EMAIL ===
+
+class SaveConversationRequest(BaseModel):
+    """Schema para salvar conversa"""
+    session_id: str
+    email: str
+
+class SendEmailRequest(BaseModel):
+    """Schema para enviar email"""
+    session_id: str
+    email: str
+
+@app.post("/chat/save-conversation")
+async def save_conversation_to_email(request: SaveConversationRequest):
+    """
+    Salva uma conversa e envia por email
+    """
+    try:
+        # Verificar se sessão existe
+        session = chat_manager.get_session(request.session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail="Sessão não encontrada ou expirada"
+            )
+        
+        # Gerar resumo da conversa
+        summary = chat_manager.get_conversation_summary(request.session_id)
+        
+        # Salvar no banco de dados
+        if summary and summary.get("user_profile"):
+            profile = summary["user_profile"]
+            db_manager.save_lead(
+                session_id=request.session_id,
+                user_profile=profile,
+                conversation_summary=summary.get("summary", "Conversa salva"),
+                pain_points=summary.get("pain_points", []),
+                recommended_solutions=summary.get("recommended_solutions", []),
+                qualification_score=summary.get("qualification_score", 0.0),
+                full_conversation=session.messages
+            )
+        
+        # Enviar email com a conversa
+        email_sent = notification_service.send_conversation_email(
+            email=request.email,
+            session_id=request.session_id,
+            messages=session.messages,
+            summary=summary
+        )
+        
+        return {
+            "success": True,
+            "message": "Conversa salva e email enviado com sucesso",
+            "session_id": request.session_id,
+            "email": request.email,
+            "email_sent": email_sent
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao salvar conversa: {str(e)}"
+        )
+
+@app.post("/chat/send-email")
+async def send_conversation_email(request: SendEmailRequest):
+    """
+    Envia conversa por email sem salvar no banco
+    """
+    try:
+        # Verificar se sessão existe
+        session = chat_manager.get_session(request.session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail="Sessão não encontrada ou expirada"
+            )
+        
+        # Gerar resumo da conversa
+        summary = chat_manager.get_conversation_summary(request.session_id)
+        
+        # Enviar email
+        email_sent = notification_service.send_conversation_email(
+            email=request.email,
+            session_id=request.session_id,
+            messages=session.messages,
+            summary=summary
+        )
+        
+        return {
+            "success": True,
+            "message": "Email enviado com sucesso",
+            "session_id": request.session_id,
+            "email": request.email,
+            "email_sent": email_sent
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao enviar email: {str(e)}"
+        )
+
+@app.get("/chat/conversation/{session_id}")
+async def get_full_conversation(session_id: str):
+    """
+    Recupera conversa completa para envio por email
+    """
+    try:
+        session = chat_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail="Sessão não encontrada"
+            )
+        
+        # Gerar resumo
+        summary = chat_manager.get_conversation_summary(session_id)
+        
+        return {
+            "session_id": session_id,
+            "messages": session.messages,
+            "summary": summary,
+            "user_profile": session.user_profile,
+            "created_at": session.created_at,
+            "updated_at": session.updated_at
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao recuperar conversa: {str(e)}"
+        )
+
 # === ENDPOINTS DE TESTE E DESENVOLVIMENTO ===
 
 @app.post("/test/database")

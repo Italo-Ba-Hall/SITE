@@ -105,7 +105,10 @@ const AnimationIntro: React.FC = () => {
         await new Promise(r => setTimeout(r, 200));
       }
 
-      // Finalizar animação
+      // Aguardar um pouco antes de finalizar
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Finalizar animação com transição suave
       setIsVisible(false);
       
       // Disparar evento para mudança de modo de animação
@@ -135,19 +138,26 @@ const AnimationIntro: React.FC = () => {
           {`
             path {
               stroke: #ffffff;
-              stroke-width: 2;
+              stroke-width: 3;
               fill: none;
+              opacity: 0;
             }
             text {
               font-family: 'Roboto Mono', monospace;
-              font-size: 20px;
+              font-size: 24px;
               fill: #ffffff;
               stroke: none;
+              opacity: 0;
+              font-weight: bold;
             }
             #slogan text {
-              font-size: 11px; 
-              fill: #444444;
+              font-size: 14px; 
+              fill: #ffffff;
               text-anchor: middle;
+              opacity: 0;
+            }
+            #slogan-cursor {
+              opacity: 0;
             }
           `}
         </style>
@@ -189,7 +199,7 @@ const AnimationIntro: React.FC = () => {
         </g>
         <g id="slogan">
           <text id="slogan-text" x="475" y="490">CODE, the new religion</text>
-          <rect id="slogan-cursor" x="585" y="482" width="5" height="10" fill="#444444" opacity="0"/>
+          <rect id="slogan-cursor" x="585" y="482" width="5" height="10" fill="#ffffff" opacity="0"/>
         </g>
       </svg>
     </div>

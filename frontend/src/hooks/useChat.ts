@@ -26,6 +26,8 @@ interface UseChatReturn {
   isSessionReady: boolean;
   inactivityWarning: string | null;
   sessionExpired: boolean;
+  saveConversation: (email: string) => Promise<boolean>;
+  sendConversationEmail: (email: string) => Promise<boolean>;
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -376,6 +378,82 @@ export const useChat = (): UseChatReturn => {
     };
   }, []);
 
+  const saveConversation = useCallback(async (email: string): Promise<boolean> => {
+    if (!sessionRef.current) {
+      setError('Nenhuma sessão ativa para salvar');
+      return false;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetchWithRetry(`${API_BASE_URL}/chat/save-conversation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionRef.current,
+          email: email
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Erro ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.success || false;
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(`Erro ao salvar conversa: ${errorMessage}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const sendConversationEmail = useCallback(async (email: string): Promise<boolean> => {
+    if (!sessionRef.current) {
+      setError('Nenhuma sessão ativa para enviar');
+      return false;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetchWithRetry(`${API_BASE_URL}/chat/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionRef.current,
+          email: email
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Erro ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.success || false;
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(`Erro ao enviar email: ${errorMessage}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     session,
     messages,
@@ -389,6 +467,8 @@ export const useChat = (): UseChatReturn => {
     clearError,
     isSessionReady,
     inactivityWarning,
-    sessionExpired
+    sessionExpired,
+    saveConversation,
+    sendConversationEmail
   };
 }; 

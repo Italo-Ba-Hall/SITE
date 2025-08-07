@@ -14,6 +14,10 @@ const ChatModal: React.FC<ChatModalProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [modalVisible, setModalVisible] = useState(isVisible);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailValue, setEmailValue] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -28,7 +32,9 @@ const ChatModal: React.FC<ChatModalProps> = ({
     clearError,
     isSessionReady,
     inactivityWarning,
-    sessionExpired
+    sessionExpired,
+    saveConversation,
+    sendConversationEmail
   } = useChat();
 
   useEffect(() => {
@@ -107,6 +113,43 @@ const ChatModal: React.FC<ChatModalProps> = ({
     await retryLastMessage();
   };
 
+  const handleSaveConversation = () => {
+    setShowEmailForm(true);
+  };
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailValue.trim() || isSendingEmail) return;
+
+    setIsSendingEmail(true);
+    try {
+      // Usar a função do hook para enviar email
+      const success = await sendConversationEmail(emailValue);
+      
+      if (success) {
+        setEmailSent(true);
+        setTimeout(() => {
+          setShowEmailForm(false);
+          setEmailValue('');
+          setEmailSent(false);
+        }, 3000);
+      } else {
+        // Mostrar erro se falhar
+        console.error('Falha ao enviar email');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleCancelEmail = () => {
+    setShowEmailForm(false);
+    setEmailValue('');
+    setEmailSent(false);
+  };
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -174,6 +217,15 @@ const ChatModal: React.FC<ChatModalProps> = ({
             </div>
           </div>
           <div className="flex items-center space-x-3">
+            {messages.length > 0 && (
+              <button
+                onClick={handleSaveConversation}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+              >
+                <span>📧</span>
+                <span>Salvar Conversa</span>
+              </button>
+            )}
             <div className="text-xs text-gray-500">
               {messages.length > 0 && `${messages.length} mensagens`}
             </div>
@@ -186,6 +238,53 @@ const ChatModal: React.FC<ChatModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Email Form Modal */}
+        {showEmailForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[10000] p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6">
+              <h3 className="text-cyan-400 text-xl font-bold mb-4">Salvar Conversa</h3>
+              <p className="text-gray-400 text-sm mb-6">
+                Digite seu email para receber um resumo desta conversa:
+              </p>
+              
+              {emailSent ? (
+                <div className="text-center py-8">
+                  <div className="text-green-400 text-4xl mb-4">✅</div>
+                  <p className="text-green-400 font-medium">Email enviado com sucesso!</p>
+                  <p className="text-gray-400 text-sm mt-2">Verifique sua caixa de entrada</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSendEmail} className="space-y-4">
+                  <input
+                    type="email"
+                    value={emailValue}
+                    onChange={(e) => setEmailValue(e.target.value)}
+                    placeholder="seu@email.com"
+                    required
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400"
+                  />
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      disabled={!emailValue.trim() || isSendingEmail}
+                      className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200"
+                    >
+                      {isSendingEmail ? 'Enviando...' : 'Enviar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEmail}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Messages Container */}
         <div 
@@ -213,12 +312,17 @@ const ChatModal: React.FC<ChatModalProps> = ({
                 <div
                   className={`max-w-[85%] rounded-2xl px-6 py-4 ${
                     message.role === 'user'
-                      ? 'bg-cyan-600 text-white shadow-lg'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg border border-blue-400'
                       : isInactivityWarning(message.content)
                       ? 'bg-yellow-900 border-2 border-yellow-600 text-yellow-100 shadow-lg animate-pulse'
                       : 'bg-gray-800 border border-gray-700 text-cyan-400 shadow-lg'
                   }`}
                   style={{
+                    ...(message.role === 'user' && {
+                      background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                      border: '1px solid #60a5fa',
+                      boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.3)'
+                    }),
                     ...(message.role === 'assistant' && !isInactivityWarning(message.content) && {
                       color: '#00e5ff',
                       backgroundColor: '#1f2937',
@@ -234,6 +338,10 @@ const ChatModal: React.FC<ChatModalProps> = ({
                   <div 
                     className="whitespace-pre-wrap text-base leading-relaxed break-words"
                     style={{
+                      ...(message.role === 'user' && {
+                        color: '#ffffff',
+                        fontWeight: '500'
+                      }),
                       ...(message.role === 'assistant' && !isInactivityWarning(message.content) && {
                         color: '#00e5ff'
                       }),
@@ -248,7 +356,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
                     }
                   </div>
                   <div className={`text-xs mt-3 ${
-                    message.role === 'user' ? 'text-cyan-200' : 
+                    message.role === 'user' ? 'text-blue-200' : 
                     isInactivityWarning(message.content) ? 'text-yellow-200' : 'text-gray-500'
                   }`}>
                     {formatTime(message.timestamp)}
