@@ -33,7 +33,6 @@ const ChatModal: React.FC<ChatModalProps> = ({
     isSessionReady,
     inactivityWarning,
     sessionExpired,
-    saveConversation,
     sendConversationEmail
   } = useChat();
 

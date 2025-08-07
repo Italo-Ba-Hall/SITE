@@ -46,15 +46,73 @@ const TIMEOUT_CONFIG = {
   checkInterval: 30 * 1000, // Verificar a cada 30 segundos
 };
 
+// Cache de dados
+const CACHE_CONFIG = {
+  maxSize: 50, // Máximo de 50 itens no cache
+  ttl: 5 * 60 * 1000, // 5 minutos de TTL
+};
+
+// Cache simples em memória
+const dataCache = new Map<string, { data: unknown; timestamp: number }>();
+
+// Função para limpar cache expirado
+const cleanExpiredCache = () => {
+  const now = Date.now();
+  const entries = Array.from(dataCache.entries());
+  
+  for (const [key, value] of entries) {
+    if (now - value.timestamp > CACHE_CONFIG.ttl) {
+      dataCache.delete(key);
+    }
+  }
+  
+  // Se cache muito grande, remover itens mais antigos
+  if (dataCache.size > CACHE_CONFIG.maxSize) {
+    const sortedEntries = Array.from(dataCache.entries());
+    sortedEntries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toRemove = sortedEntries.slice(0, sortedEntries.length - CACHE_CONFIG.maxSize);
+    toRemove.forEach(([key]) => dataCache.delete(key));
+  }
+};
+
+// Função para obter dados do cache
+const getCachedData = (key: string) => {
+  cleanExpiredCache();
+  const cached = dataCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_CONFIG.ttl) {
+    return cached.data;
+  }
+  return null;
+};
+
+// Função para salvar dados no cache
+const setCachedData = (key: string, data: unknown) => {
+  cleanExpiredCache();
+  dataCache.set(key, { data, timestamp: Date.now() });
+};
+
 // Função para delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Função para fazer requisição com retry
+// Função para fazer requisição com retry e cache
 const fetchWithRetry = async (
   url: string, 
   options: RequestInit, 
-  maxRetries: number = RETRY_CONFIG.maxRetries
+  maxRetries: number = RETRY_CONFIG.maxRetries,
+  useCache = false
 ): Promise<Response> => {
+  // Verificar cache para requisições GET
+  if (useCache && options.method === 'GET') {
+    const cacheKey = `${url}-${JSON.stringify(options)}`;
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+      return new Response(JSON.stringify(cachedData), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -68,6 +126,13 @@ const fetchWithRetry = async (
       
       // Se ok ou erro 5xx, retry
       if (response.ok || response.status >= 500) {
+        // Salvar no cache se for GET e sucesso
+        if (useCache && options.method === 'GET' && response.ok) {
+          const cacheKey = `${url}-${JSON.stringify(options)}`;
+          const data = await response.clone().json();
+          setCachedData(cacheKey, data);
+        }
+        
         return response;
       }
       

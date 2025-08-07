@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../hooks/useChat';
 
-const MainContent: React.FC = () => {
+const MainContent: React.FC = React.memo(() => {
   const [isVisible, setIsVisible] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showChatModal, setShowChatModal] = useState(false);
@@ -41,55 +41,51 @@ const MainContent: React.FC = () => {
     }
   }, [showChatModal, initialMessage, startChat]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
-  };
+  }, []);
 
-  const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyUp = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleUnifiedInput();
+      const userInput = inputValue.trim();
+      if (!userInput) return;
+
+      // Se não há chat ativo, iniciar um novo
+      if (!showChatModal) {
+        setInitialMessage(userInput);
+        setShowChatModal(true);
+        setInputValue('');
+        return;
+      }
+
+      // Se já há chat ativo, enviar mensagem
+      if (isSessionReady) {
+        sendMessage(userInput);
+        setInputValue('');
+      }
     } else if (e.key === 'Escape') {
       setInputValue('');
     }
-  };
+  }, [inputValue, showChatModal, isSessionReady, sendMessage]);
 
-  const handleUnifiedInput = async () => {
-    const userInput = inputValue.trim();
-    if (!userInput) return;
-
-    // Se não há chat ativo, iniciar um novo
-    if (!showChatModal) {
-      setInitialMessage(userInput);
-      setShowChatModal(true);
-      setInputValue('');
-      return;
-    }
-
-    // Se já há chat ativo, enviar mensagem
-    if (isSessionReady) {
-      await sendMessage(userInput);
-      setInputValue('');
-    }
-  };
-
-  const handlePromptClick = () => {
+  const handlePromptClick = useCallback(() => {
     inputRef.current?.focus();
-  };
+  }, []);
 
-  const handleCloseChat = () => {
+  const handleCloseChat = useCallback(() => {
     setShowChatModal(false);
     setInitialMessage('');
     endChat();
-  };
+  }, [endChat]);
 
-  const formatTime = (date: Date) => {
+  const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
 
-  const formatAssistantMessage = (content: string) => {
+  const formatAssistantMessage = useCallback((content: string) => {
     // Garantir que quebras de linha sejam respeitadas
     return content
       .split('\n')
@@ -99,7 +95,7 @@ const MainContent: React.FC = () => {
           {index < content.split('\n').length - 1 && <br />}
         </React.Fragment>
       ));
-  };
+  }, []);
 
   return (
     <div id="mainContent" className={`content ${isVisible ? 'visible' : ''}`}>
@@ -253,6 +249,6 @@ const MainContent: React.FC = () => {
       </div>
     </div>
   );
-};
+});
 
 export default MainContent; 
