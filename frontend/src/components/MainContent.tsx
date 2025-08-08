@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChat } from '../hooks/useChat';
 
 const MainContent: React.FC = React.memo(() => {
@@ -86,16 +86,53 @@ const MainContent: React.FC = React.memo(() => {
   }, []);
 
   const formatAssistantMessage = useCallback((content: string) => {
-    // Garantir que quebras de linha sejam respeitadas
-    return content
-      .split('\n')
-      .map((line, index) => (
-        <React.Fragment key={index}>
-          {line}
-          {index < content.split('\n').length - 1 && <br />}
+    // Linkificar URLs e preservar quebras de linha
+    const urlRegex = /(https?:\/\/[^\s)]+)|(www\.[^\s)]+)/gi;
+    const lines = content.split('\n');
+    return lines.map((line, lineIdx) => {
+      const parts = line.split(urlRegex);
+      return (
+        <React.Fragment key={`l-${lineIdx}`}>
+          {parts.map((part, idx) => {
+            if (!part) return null;
+            const isUrl = urlRegex.test(part);
+            urlRegex.lastIndex = 0;
+            if (isUrl) {
+              const href = part.startsWith('http') ? part : `http://${part}`;
+              return (
+                <a key={`p-${idx}`} href={href} target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">
+                  {part}
+                </a>
+              );
+            }
+            return <React.Fragment key={`p-${idx}`}>{part}</React.Fragment>;
+          })}
+          {lineIdx < lines.length - 1 && <br />}
         </React.Fragment>
-      ));
+      );
+    });
   }, []);
+
+  const lastAssistantIndex = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') return i;
+    }
+    return -1;
+  }, [messages]);
+
+  const quickReplies = useMemo(
+    () => [
+      'Quais serviços vocês oferecem?',
+      'Quero um orçamento',
+      'Como iniciamos o projeto?'
+    ],
+    []
+  );
+
+  const handleQuickReply = useCallback(async (text: string) => {
+    if (!text.trim() || !isSessionReady) return;
+    await sendMessage(text);
+  }, [isSessionReady, sendMessage]);
 
   return (
     <div id="mainContent" className={`content ${isVisible ? 'visible' : ''}`}>
@@ -240,6 +277,22 @@ const MainContent: React.FC = React.memo(() => {
                         Tentar Novamente
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Quick Replies */}
+                {messages.length > 0 && lastAssistantIndex === messages.length - 1 && !isLoading && !error && (
+                  <div className="flex flex-wrap gap-2">
+                    {quickReplies.map((qr) => (
+                      <button
+                        key={qr}
+                        type="button"
+                        onClick={() => handleQuickReply(qr)}
+                        className="px-3 py-1.5 border border-gray-600 rounded-full text-sm text-gray-300 hover:text-cyan-400 hover:border-cyan-400 transition-colors"
+                      >
+                        {qr}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

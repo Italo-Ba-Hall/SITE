@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiCall } from '../hooks/useApi';
 
 interface Lead {
@@ -54,6 +54,10 @@ const Dashboard: React.FC = () => {
   const [showLeadDetails, setShowLeadDetails] = useState(false);
   const [showConversationDetails, setShowConversationDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<'leads' | 'conversations'>('conversations');
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadStatusFilter, setLeadStatusFilter] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
   
   const loadDashboardData = useCallback(async () => {
     try {
@@ -92,16 +96,19 @@ const Dashboard: React.FC = () => {
   }, [loadDashboardData]);
 
   const updateLeadStatus = async (sessionId: string, newStatus: string) => {
+    // Atualização otimista
+    const prevLeads = leads;
+    setLeads((lst) => lst.map((l) => (l.session_id === sessionId ? { ...l, status: newStatus } : l)));
     try {
       await apiCall<{success: boolean, message: string, session_id: string, new_status: string}>(`/dashboard/leads/${sessionId}/status`, {
         method: 'PUT',
-        data: { status: newStatus }
+        params: { status: newStatus }
       });
-      
-      // Recarregar dados
+      // Recarregar stats/notifications de leve
       loadDashboardData();
-      
     } catch (error) {
+      // Reverter em caso de erro
+      setLeads(prevLeads);
       // eslint-disable-next-line no-console
       console.error('Erro ao atualizar status:', error);
     }
@@ -112,16 +119,51 @@ const Dashboard: React.FC = () => {
       await apiCall<{success: boolean, message: string, notification_id: number}>(`/dashboard/notifications/${notificationId}/read`, {
         method: 'PUT'
       });
-      
-      // Recarregar notificações
-      const notificationsResponse = await apiCall<{notifications: Notification[], total: number}>('/dashboard/notifications');
-      setNotifications(notificationsResponse.notifications || []);
-      
+      // Atualização local
+      setNotifications((items) => items.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)));
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Erro ao marcar notificação como lida:', error);
     }
   };
+
+  // Filtros e paginação de leads (client-side)
+  const filteredLeads = useMemo(() => {
+    const term = leadSearch.trim().toLowerCase();
+    const byStatus = (l: Lead) => (!leadStatusFilter ? true : l.status === leadStatusFilter);
+    const byTerm = (l: Lead) =>
+      !term ||
+      [l.name, l.email, l.company, l.role]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase())
+        .some((v) => v.includes(term));
+    return leads.filter((l) => byStatus(l) && byTerm(l));
+  }, [leads, leadSearch, leadStatusFilter]);
+
+  const paginatedLeads = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredLeads.slice(start, start + pageSize);
+  }, [filteredLeads, page, pageSize]);
+
+  useEffect(() => {
+    // Resetar para primeira página ao mudar filtros
+    setPage(1);
+  }, [leadSearch, leadStatusFilter]);
+
+  const computedStats = useMemo(() => {
+    if (stats) return stats;
+    // Fallback básico quando stats não disponíveis na API
+    const leadsByStatus = filteredLeads.reduce<Record<string, number>>((acc, l) => {
+      acc[l.status] = (acc[l.status] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      total_leads: leads.length,
+      leads_by_status: leadsByStatus,
+      total_conversations: conversations.length,
+      unread_notifications: notifications.filter((n) => !n.is_read).length,
+    } as DashboardStats;
+  }, [stats, filteredLeads, leads.length, conversations.length, notifications]);
 
   const handleViewLeadDetails = (lead: Lead) => {
     setSelectedLead(lead);
@@ -204,7 +246,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        {stats && (
+        {computedStats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow duration-200">
               <div className="flex items-center">
@@ -213,7 +255,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total de Leads</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total_leads}</p>
+                  <p className="text-3xl font-bold text-gray-900">{computedStats.total_leads}</p>
                 </div>
               </div>
             </div>
@@ -225,7 +267,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Qualificados</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.leads_by_status.qualified || 0}</p>
+                  <p className="text-3xl font-bold text-gray-900">{computedStats.leads_by_status.qualified || 0}</p>
                 </div>
               </div>
             </div>
@@ -237,7 +279,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Conversas</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total_conversations}</p>
+                  <p className="text-3xl font-bold text-gray-900">{computedStats.total_conversations}</p>
                 </div>
               </div>
             </div>
@@ -249,7 +291,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Notificações</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.unread_notifications}</p>
+                  <p className="text-3xl font-bold text-gray-900">{computedStats.unread_notifications}</p>
                 </div>
               </div>
             </div>
@@ -336,6 +378,28 @@ const Dashboard: React.FC = () => {
               ) : (
                 /* Leads */
                 <div className="overflow-x-auto">
+                  {/* Filtros */}
+                  <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
+                    <input
+                      type="text"
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      placeholder="Buscar por nome, email, empresa..."
+                      className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <select
+                      value={leadStatusFilter}
+                      onChange={(e) => setLeadStatusFilter(e.target.value)}
+                      className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Todos os status</option>
+                      <option value="new">Novo</option>
+                      <option value="contacted">Contactado</option>
+                      <option value="qualified">Qualificado</option>
+                      <option value="converted">Convertido</option>
+                      <option value="lost">Perdido</option>
+                    </select>
+                  </div>
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -357,8 +421,8 @@ const Dashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {leads.length > 0 ? (
-                        leads.map((lead) => (
+                      {paginatedLeads.length > 0 ? (
+                        paginatedLeads.map((lead) => (
                           <tr key={lead.id} className="hover:bg-gray-50 transition-colors duration-150">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div>
@@ -415,6 +479,30 @@ const Dashboard: React.FC = () => {
                       )}
                     </tbody>
                   </table>
+                  {/* Paginação */}
+                  {filteredLeads.length > pageSize && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                      <div className="text-sm text-gray-600">
+                        Mostrando {Math.min((page - 1) * pageSize + 1, filteredLeads.length)}–{Math.min(page * pageSize, filteredLeads.length)} de {filteredLeads.length}
+                      </div>
+                      <div className="space-x-2">
+                        <button
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          disabled={page === 1}
+                          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50"
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          onClick={() => setPage((p) => (p * pageSize < filteredLeads.length ? p + 1 : p))}
+                          disabled={page * pageSize >= filteredLeads.length}
+                          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50"
+                        >
+                          Próxima
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
