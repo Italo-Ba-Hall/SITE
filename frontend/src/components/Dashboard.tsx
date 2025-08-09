@@ -713,6 +713,30 @@ const Dashboard: React.FC = () => {
                   ×
                 </button>
               </div>
+              {/* Indicador de coleta no topo do modal */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {selectedConversation.lead_name && selectedConversation.lead_email ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Contato completo (Nome + Email)
+                  </span>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                      Coleta incompleta
+                    </span>
+                    {!selectedConversation.lead_name && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        Nome —
+                      </span>
+                    )}
+                    {!selectedConversation.lead_email && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        Email —
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             
             <div className="px-6 py-4">
