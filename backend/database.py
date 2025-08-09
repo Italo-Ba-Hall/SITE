@@ -224,6 +224,39 @@ class DatabaseManager:
                 summaries.append(summary_data)
             
             return summaries
+
+    def get_conversation_messages(self, session_id: str) -> List[Dict[str, Any]]:
+        """Recupera mensagens de uma conversa salva (fallback para sessões expiradas)."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT role, content, metadata, timestamp
+                FROM conversations
+                WHERE session_id = ?
+                ORDER BY timestamp ASC
+                """,
+                (session_id,),
+            )
+
+            messages: List[Dict[str, Any]] = []
+            for row in cursor.fetchall():
+                role, content, metadata_json, ts = row
+                try:
+                    metadata = json.loads(metadata_json) if metadata_json else {}
+                except Exception:
+                    metadata = {}
+                messages.append(
+                    {
+                        "role": role,
+                        "content": content,
+                        "metadata": metadata,
+                        "timestamp": ts,
+                    }
+                )
+
+            return messages
     
     def get_lead(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Recupera um lead pelo session_id"""

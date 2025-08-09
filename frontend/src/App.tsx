@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import './App.css';
 import BackgroundCanvas from './components/BackgroundCanvas';
 import AnimationIntro from './components/AnimationIntro';
@@ -12,23 +12,34 @@ const MainContent = lazy(() => import('./components/MainContent'));
 const AdminAccess = lazy(() => import('./components/AdminAccess'));
 
 function App() {
+  const isAdminMode = useMemo(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('admin') === 'hall-dev-secret-2024';
+    } catch {
+      return false;
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <ToastProvider>
         <Router>
           <div className="App">
-            <BackgroundCanvas />
-            <AnimationIntro />
+            {!isAdminMode && (
+              <>
+                <BackgroundCanvas />
+                <AnimationIntro />
+              </>
+            )}
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-screen">
                 <LoadingSpinner size="large" color="cyan" text="Carregando..." />
               </div>
             }>
               <Routes>
-                <Route path="/" element={<MainContent />} />
+                <Route path="/" element={isAdminMode ? <AdminAccess /> : <MainContent />} />
               </Routes>
-              {/* Acesso administrativo secreto - não aparece na navegação */}
-              <AdminAccess />
             </Suspense>
           </div>
         </Router>

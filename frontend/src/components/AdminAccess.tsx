@@ -1,29 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Dashboard from './Dashboard';
 
 const AdminAccess: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [keySequence, setKeySequence] = useState<string[]>([]);
 
+  const handleLogout = useCallback(() => {
+    setIsAdmin(false);
+    localStorage.removeItem('admin-session');
+    setKeySequence([]);
+  }, []);
+
   useEffect(() => {
     // Sequência secreta: Ctrl + Alt + A + D
     const secretSequence = ['Control', 'Alt', 'KeyA', 'KeyD'];
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const newSequence = [...keySequence, e.code];
-      
-      // Manter apenas as últimas 4 teclas
-      if (newSequence.length > 4) {
-        newSequence.shift();
+      // Fechar com ESC
+      if (e.key === 'Escape') {
+        handleLogout();
+        return;
       }
-      
+
+      const newSequence = [...keySequence, e.code];
+      if (newSequence.length > 4) newSequence.shift();
       setKeySequence(newSequence);
 
-      // Verificar se a sequência está correta
       if (newSequence.length === 4) {
         const isCorrect = newSequence.every((key, index) => key === secretSequence[index]);
         if (isCorrect) {
-          // Acesso direto com sequência correta
           setIsAdmin(true);
           localStorage.setItem('admin-session', 'active');
           setKeySequence([]);
@@ -33,7 +38,7 @@ const AdminAccess: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [keySequence]);
+  }, [keySequence, handleLogout]);
 
   // Verificar se é acesso via URL especial
   useEffect(() => {
@@ -52,33 +57,33 @@ const AdminAccess: React.FC = () => {
     }
   }, []);
 
-  const handleLogout = () => {
-    setIsAdmin(false);
-    localStorage.removeItem('admin-session');
-    setKeySequence([]);
-  };
-
-  if (!isAdmin) {
-    return null; // Não renderiza nada se não for admin
-  }
+  if (!isAdmin) return null; // Não renderiza nada se não for admin
 
   return (
-    <div className="admin-dashboard-container">
-      <div className="admin-header">
-        <div className="admin-info">
-          <span className="admin-badge">🔒 ADMIN</span>
-          <span className="admin-status">Sessão Ativa</span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto">
+      {/* Topbar */}
+      <div className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-cyan-600 text-white">ADMIN</span>
+            <span className="text-gray-700 text-sm">Sessão ativa</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-700 hover:text-gray-900 px-3 py-1.5 border border-gray-300 rounded-md hover:border-gray-400"
+            aria-label="Sair do painel"
+          >
+            Sair
+          </button>
         </div>
-        <button 
-          onClick={handleLogout}
-          className="admin-logout-btn"
-        >
-          🚪 Sair
-        </button>
       </div>
-      <Dashboard />
+
+      {/* Área principal */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <Dashboard />
+      </div>
     </div>
   );
 };
 
-export default AdminAccess; 
+export default AdminAccess;

@@ -799,29 +799,47 @@ async def get_full_conversation(session_id: str):
     """
     try:
         session = chat_manager.get_session(session_id)
-        if not session:
-            raise HTTPException(
-                status_code=404,
-                detail="Sessão não encontrada"
-            )
-        
-        # Gerar resumo
-        summary = chat_manager.get_conversation_summary(session_id)
-        
+        if session:
+            # Sessão ativa: retornar diretamente da memória
+            summary = chat_manager.get_conversation_summary(session_id)
+            return {
+                "session_id": session_id,
+                "messages": session.messages,
+                "summary": summary,
+                "user_profile": session.user_profile,
+                "created_at": session.created_at,
+                "updated_at": session.updated_at,
+            }
+
+        # Fallback: buscar no banco conversas e resumo persistidos
+        persisted_messages = db_manager.get_conversation_messages(session_id)
+        persisted_summary = db_manager.get_conversation_summary(session_id)
+        if not persisted_messages and not persisted_summary:
+            raise HTTPException(status_code=404, detail="Conversa não encontrada")
+
+        # Normalizar mensagens para o frontend
+        normalized = [
+            {
+                "role": (m.get("role") or "system"),
+                "content": m.get("content", ""),
+                "timestamp": m.get("timestamp"),
+            }
+            for m in persisted_messages
+        ]
+
         return {
             "session_id": session_id,
-            "messages": session.messages,
-            "summary": summary,
-            "user_profile": session.user_profile,
-            "created_at": session.created_at,
-            "updated_at": session.updated_at
+            "messages": normalized,
+            "summary": persisted_summary,
+            "user_profile": None,
+            "created_at": persisted_summary.get("created_at") if persisted_summary else None,
+            "updated_at": None,
         }
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao recuperar conversa: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Erro ao recuperar conversa: {str(e)}")
 
 # === ENDPOINTS DE TESTE E DESENVOLVIMENTO ===
 

@@ -23,6 +23,11 @@ interface ConversationSummary {
   created_at: string;
   lead_name?: string;
   lead_email?: string;
+  messages?: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp?: string | Date;
+  }>;
 }
 
 interface Notification {
@@ -58,6 +63,19 @@ const Dashboard: React.FC = () => {
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
+  const [onlyCollected, setOnlyCollected] = useState(false);
+
+  const sortedConversations = useMemo(() => {
+    const clone = [...conversations];
+    return clone.sort((a, b) => {
+      const aCollected = Number(Boolean(a.lead_name) && Boolean(a.lead_email));
+      const bCollected = Number(Boolean(b.lead_name) && Boolean(b.lead_email));
+      if (aCollected !== bCollected) return bCollected - aCollected; // coletados primeiro
+      const aTime = new Date(a.created_at).getTime();
+      const bTime = new Date(b.created_at).getTime();
+      return bTime - aTime; // mais recentes primeiro
+    });
+  }, [conversations]);
   
   const loadDashboardData = useCallback(async () => {
     try {
@@ -137,8 +155,9 @@ const Dashboard: React.FC = () => {
         .filter(Boolean)
         .map((v) => String(v).toLowerCase())
         .some((v) => v.includes(term));
-    return leads.filter((l) => byStatus(l) && byTerm(l));
-  }, [leads, leadSearch, leadStatusFilter]);
+    const byCollected = (l: Lead) => (!onlyCollected ? true : Boolean(l.name) && Boolean(l.email));
+    return leads.filter((l) => byStatus(l) && byTerm(l) && byCollected(l));
+  }, [leads, leadSearch, leadStatusFilter, onlyCollected]);
 
   const paginatedLeads = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -148,7 +167,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     // Resetar para primeira página ao mudar filtros
     setPage(1);
-  }, [leadSearch, leadStatusFilter]);
+  }, [leadSearch, leadStatusFilter, onlyCollected]);
 
   const computedStats = useMemo(() => {
     if (stats) return stats;
@@ -170,10 +189,31 @@ const Dashboard: React.FC = () => {
     setShowLeadDetails(true);
   };
 
-  const handleViewConversationDetails = (conversation: ConversationSummary) => {
-    setSelectedConversation(conversation);
-    setShowConversationDetails(true);
-  };
+  const handleViewConversationDetails = useCallback(async (conversation: ConversationSummary) => {
+    try {
+      const details = await apiCall<{
+        session_id: string;
+        messages: ConversationSummary['messages'];
+        summary?: unknown;
+        user_profile?: { name?: string; email?: string } | null;
+      }>(`/chat/conversation/${conversation.session_id}`);
+
+      const enriched: ConversationSummary = {
+        ...conversation,
+        messages: details.messages || conversation.messages || [],
+        lead_name: conversation.lead_name || details.user_profile?.name,
+        lead_email: conversation.lead_email || details.user_profile?.email,
+      };
+
+      setSelectedConversation(enriched);
+      setShowConversationDetails(true);
+    } catch (err) {
+      setSelectedConversation(conversation);
+      setShowConversationDetails(true);
+      // eslint-disable-next-line no-console
+      console.error('Erro ao carregar conversa completa:', err);
+    }
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -245,10 +285,10 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - formato de cards modernos */}
         {computedStats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow duration-200">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center">
                 <div className="p-3 bg-blue-100 rounded-lg">
                   <span className="text-2xl">👥</span>
@@ -260,7 +300,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow duration-200">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center">
                 <div className="p-3 bg-green-100 rounded-lg">
                   <span className="text-2xl">✅</span>
@@ -272,7 +312,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow duration-200">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center">
                 <div className="p-3 bg-purple-100 rounded-lg">
                   <span className="text-2xl">💬</span>
@@ -284,7 +324,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow duration-200">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center">
                 <div className="p-3 bg-yellow-100 rounded-lg">
                   <span className="text-2xl">🔔</span>
@@ -338,20 +378,31 @@ const Dashboard: React.FC = () => {
               
               {activeTab === 'conversations' ? (
                 /* Conversas */
-                <div className="overflow-y-auto max-h-96">
-                  {conversations.length > 0 ? (
+                <div className="overflow-y-auto max-h-[70vh]">
+                      {sortedConversations.length > 0 ? (
                     <div className="divide-y divide-gray-200">
-                      {conversations.map((conversation) => (
+                      {sortedConversations.map((conversation) => (
                         <div key={conversation.id} className="p-6 hover:bg-gray-50 transition-colors duration-150">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
+                          <div className="flex items-center space-x-2 mb-2">
                                 <span className="text-sm font-medium text-gray-900">
                                   Sessão: {conversation.session_id}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   {formatDate(conversation.created_at)}
                                 </span>
+                            {/* Indicadores de captura */}
+                            {conversation.lead_name ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Nome ✅</span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Nome —</span>
+                            )}
+                            {conversation.lead_email ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Email ✅</span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Email —</span>
+                            )}
                               </div>
                               <p className="text-sm text-gray-600 line-clamp-3">
                                 {conversation.summary}
@@ -399,6 +450,15 @@ const Dashboard: React.FC = () => {
                       <option value="converted">Convertido</option>
                       <option value="lost">Perdido</option>
                     </select>
+                    <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={onlyCollected}
+                        onChange={(e) => setOnlyCollected(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <span>Somente com Nome e Email</span>
+                    </label>
                   </div>
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -669,6 +729,20 @@ const Dashboard: React.FC = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Resumo da Conversa</h4>
                   <p className="text-sm text-gray-600 leading-relaxed">{selectedConversation.summary}</p>
                 </div>
+
+                {selectedConversation.messages && selectedConversation.messages.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Mensagens</h4>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
+                      {selectedConversation.messages.map((m, idx) => (
+                        <div key={idx} className={`text-sm ${m.role === 'user' ? 'text-gray-900' : 'text-gray-700'}`}>
+                          <span className="font-medium mr-2">{m.role === 'user' ? 'Usuário' : m.role === 'assistant' ? 'Assistente' : 'Sistema'}:</span>
+                          <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
