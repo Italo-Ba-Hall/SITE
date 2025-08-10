@@ -15,7 +15,8 @@ function App() {
   const isAdminMode = useMemo(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      return params.get('admin') === 'hall-dev-secret-2024';
+      if (params.get('admin') === 'hall-dev-secret-2024') return true;
+      return localStorage.getItem('admin-session') === 'active';
     } catch {
       return false;
     }

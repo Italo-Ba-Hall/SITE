@@ -13,7 +13,7 @@ from collections import OrderedDict
 import groq
 from dotenv import load_dotenv
 
-from schemas import ChatMessage, MessageRole, UserProfile, LLMRequest, LLMResponse
+from schemas import ChatMessage, MessageRole, UserProfile, LLMRequest, LLMResponse, Phase
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -88,7 +88,7 @@ class LLMService:
         # Modelo mais robusto: Llama-3-70B vs 8B anterior
         self.model = "llama3-70b-8192"  # Modelo premium gratuito do Groq
         self.max_tokens = 1500  # Aumentado para aproveitar modelo maior
-        self.temperature = 0.7
+        self.temperature = 0.25
         
         # Cache de respostas
         self.cache = LLMCache(max_size=500, ttl_hours=12)
@@ -99,84 +99,32 @@ class LLMService:
         self.max_requests_per_minute = 60
         
         # Personalidade do agente
-        self.system_prompt = """Você é um agente conversacional especializado da /-HALL-DEV, uma empresa de soluções tecnológicas.
+        self.system_prompt = """Você é um agente conversacional especializado da /-HALL-DEV.
 
 PERSONALIDADE:
-- EXTREMAMENTE CONCISO: Máximo 2-3 frases por resposta
-- DIRETO AO PONTO: Sem explicações desnecessárias
-- PERGUNTADOR ESTRATÉGICO: Foque apenas em fazer perguntas específicas
-- NATURAL: Conduza a conversa de forma orgânica
+- EXTREMAMENTE CONCISO (2-3 frases)
+- DIRETO AO PONTO
+- NATURAL E AMIGÁVEL
 
-ESTRATÉGIA DE ABORDAGEM:
-1. PRIMEIRO PERGUNTE: Sempre comece com perguntas específicas
-2. ENTENDA A DOR: Descubra qual problema o usuário precisa resolver
-3. COLETE DADOS NATURALMENTE: Nome e email durante a conversa
-4. SUGIRA REUNIÃO: Termine propondo agendamento flexível
+FLUXO OBRIGATÓRIO (REGRA DE 2 TURNOS):
+1) Discovery: responda à primeira mensagem do usuário com no máximo 2 perguntas específicas e pertinentes ao tema.
+2) Lead Capture: após a primeira resposta do usuário, SE nome e email ainda não foram coletados, peça os DOIS em UMA ÚNICA frase, de forma simples e clara.
+3) Scheduling: assim que nome e email forem coletados, proponha AGENDAMENTO (apresente opções de horário ou peça disponibilidade) e ofereça UMA ESCOLHA: receber “explicações técnicas rápidas” antes ou “ir direto para o agendamento”.
+4) Se o usuário disser “não sei” ou pedir orientação, reduza perguntas, colete nome/email e avance para o agendamento.
 
-PERGUNTAS ESTRATÉGICAS PARA USAR:
-- "Que tipo de processo você gostaria de melhorar?"
-- "Qual é o maior desafio que você está enfrentando?"
-- "Como isso está impactando seus resultados?"
-- "Que tipo de solução você imagina que resolveria isso?"
-- "Qual seria o impacto ideal para sua empresa?"
+SERVIÇOS:
+- Desenvolvimento de Software, BI, Machine Learning, Automação/RPA, IA
 
-SERVIÇOS DA EMPRESA:
-- Desenvolvimento de Software
-- Business Intelligence (BI)
-- Machine Learning
-- Automação e RPA
-- Inteligência Artificial
+FORMATAÇÃO VISUAL OBRIGATÓRIA:
+- Use quebras de linha (\\n) e listas com •
+- Emojis pontuais: 👋 ❓ 💡 📧 📅 💻 🎯
 
-INSTRUÇÕES DE FORMATAÇÃO OBRIGATÓRIAS:
-IMPORTANTE: SEMPRE use formatação visual para tornar suas respostas mais amigáveis e legíveis:
-
-1. EMOJIS: Use emojis relevantes para tornar o texto mais humano e amigável
-   - ✅ Para confirmações
-   - 💡 Para ideias/sugestões
-   - 🔧 Para soluções técnicas
-   - 📊 Para dados/KPIs
-   - 🎯 Para objetivos
-   - 👋 Para saudações
-   - 📧 Para contatos
-   - ⚡ Para urgência/eficiência
-   - 🤖 Para automação/bots
-   - 📅 Para agendamentos
-   - 👥 Para equipes/pessoas
-   - ❓ Para perguntas
-
-2. ESTRUTURA VISUAL OBRIGATÓRIA:
-   - SEMPRE use quebras de linha (\\n) para separar ideias
-   - Crie tópicos com • ou - para listas
-   - Use espaçamento adequado entre seções
-   - Destaque informações importantes
-   - SEMPRE pule uma linha antes de listas ou tópicos
-
-3. EXEMPLO DE FORMATAÇÃO CORRETA:
-```
-👋 Olá! Que prazer em conhecê-lo!
-
-❓ Para te ajudar melhor, me conte:
-
-• Que tipo de processo você gostaria de melhorar?
-• Qual é o maior desafio que está enfrentando?
-
-💡 Assim posso entender exatamente como posso te ajudar!
-```
-
-4. REGRAS OBRIGATÓRIAS:
-- SEMPRE use \\n para quebras de linha
-- SEMPRE pule uma linha antes de listas
-- Use emojis com moderação (não exagere)
-- Mantenha o texto bem estruturado
-- Faça perguntas específicas
-- Colete dados naturalmente durante a conversa
-- SEMPRE formate listas com quebras de linha adequadas
-- SEJA EXTREMAMENTE CONCISO: Máximo 2-3 frases
-- FOCE EM PERGUNTAR: Mais perguntas, menos explicações
-- NUNCA IGNORE A PRIMEIRA MENSAGEM: Sempre responda ao conteúdo específico
-
-FORMATO DE RESPOSTA:
-Responda de forma natural, amigável e bem estruturada. Use emojis e formatação visual para tornar a experiência mais agradável. SEMPRE aplique quebras de linha adequadas. SEJA EXTREMAMENTE CONCISO E DIRETO. NUNCA IGNORE O CONTEÚDO DA PRIMEIRA MENSAGEM DO USUÁRIO."""
+REGRAS GERAIS:
+- Sempre responda ao conteúdo específico do usuário
+- Mantenha 2-3 frases; sem parágrafos longos
+- No máximo 2 perguntas por resposta
+- Priorize avançar o fluxo (coleta e agendamento)
+"""
 
     def _check_rate_limit(self) -> bool:
         """Verifica se não excedeu o rate limit"""
@@ -205,6 +153,72 @@ Responda de forma natural, amigável e bem estruturada. Use emojis e formataçã
         
         return context
 
+    def _get_phase_from_context(self, ctx: Optional[Dict[str, Any]]) -> Optional[str]:
+        if not ctx:
+            return None
+        phase_val = ctx.get("phase")
+        if isinstance(phase_val, Phase):
+            return phase_val.value
+        if isinstance(phase_val, str):
+            return phase_val.lower()
+        return None
+
+    def _compose_policy_instructions(
+        self,
+        ctx: Optional[Dict[str, Any]],
+        user_message: str,
+    ) -> str:
+        """Gera instruções de política contextuais para garantir coleta e agendamento."""
+        policy_parts: List[str] = []
+
+        # Detectar incerteza para encurtar e conduzir
+        user_lower = user_message.lower()
+        uncertainty = any(
+            k in user_lower for k in ["não sei", "nao sei", "preciso de orienta", "não entendo", "nao entendo"]
+        )
+
+        phase = self._get_phase_from_context(ctx)
+        profile = (ctx or {}).get("user_profile") or {}
+        has_name = bool(profile.get("name"))
+        has_email = bool(profile.get("email"))
+
+        # Contar mensagens do usuário no contexto para gatilho de captura
+        user_count = 0
+        for m in (ctx or {}).get("messages", []) or []:
+            try:
+                if getattr(m, "role", None) == MessageRole.USER or (isinstance(m, dict) and (m.get("role") == "user" or m.get("role") == MessageRole.USER)):
+                    user_count += 1
+            except Exception:
+                pass
+
+        # Regra: após a 1ª mensagem do usuário, pedir nome e email se faltarem
+        if user_count >= 1 and (not has_name or not has_email):
+            if uncertainty:
+                policy_parts.append(
+                    "Usuário incerto: reduza perguntas. Peça NOME e EMAIL agora em UMA frase curta, então conduza para agendamento."
+                )
+            else:
+                policy_parts.append(
+                    "Se NOME/EMAIL faltarem, peça ambos AGORA em UMA frase curta. No máximo 1 pergunta adicional."
+                )
+
+        # Se já coletou nome e email, avançar para agendamento com a bifurcação
+        if has_name and has_email:
+            policy_parts.append(
+                "Proponha AGENDAMENTO imediatamente e ofereça escolha: 'explicações técnicas rápidas' OU 'agendar agora'."
+            )
+
+        # Fase específica pode reforçar comportamento
+        if phase == "lead_capture" and (not has_name or not has_email):
+            policy_parts.append("Estamos em LEAD_CAPTURE: priorize coletar NOME e EMAIL nesta resposta.")
+        if phase == "scheduling" and has_name and has_email:
+            policy_parts.append("Estamos em SCHEDULING: foque em confirmar data/horário de reunião.")
+
+        # Sempre limitar perguntas
+        policy_parts.append("No máximo 2 perguntas na resposta.")
+
+        return " ".join(policy_parts).strip()
+
     def _extract_user_profile(self, message: str) -> Optional[Dict[str, str]]:
         """Extrai informações do usuário da mensagem"""
         # Lógica simples de extração - pode ser melhorada
@@ -213,16 +227,16 @@ Responda de forma natural, amigável e bem estruturada. Use emojis e formataçã
         # Extrair nome (padrões comuns)
         import re
         name_patterns = [
-            r"meu nome é (\w+)",
-            r"eu sou (\w+)",
-            r"chamo-me (\w+)",
-            r"sou (\w+)"
+            r"meu nome é\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
+            r"eu sou\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
+            r"chamo-me\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
+            r"sou\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})"
         ]
         
         for pattern in name_patterns:
             match = re.search(pattern, message.lower())
             if match:
-                profile["name"] = match.group(1).title()
+                profile["name"] = match.group(1).strip().title()
                 break
         
         # Extrair email
@@ -263,13 +277,12 @@ Responda de forma natural, amigável e bem estruturada. Use emojis e formataçã
         
         # Contexto específico para mentoria e aprendizado
         if detected_intent in ["mentoring", "learning", "programming", "self_learning"]:
-            return """Você é um agente especializado da /-HALL-DEV que oferece mentoria e treinamento em programação.
+            return """Você é um agente da /-HALL-DEV para mentoria/treinamento em programação.
 
 PERSONALIDADE:
-- EXTREMAMENTE CONCISO: Máximo 2-3 frases por resposta
-- DIRETO AO PONTO: Sem explicações desnecessárias
-- PERGUNTADOR ESTRATÉGICO: Foque apenas em fazer perguntas específicas
-- NATURAL: Conduza a conversa de forma orgânica
+- EXTREMAMENTE CONCISO (2-3 frases)
+- DIRETO AO PONTO
+- NATURAL
 
 SERVIÇOS DE MENTORIA:
 - Mentoria Individual em Programação
@@ -278,12 +291,10 @@ SERVIÇOS DE MENTORIA:
 - Acompanhamento de Projetos
 - Consultoria Técnica
 
-ESTRATÉGIA PARA MENTORIA:
-1. ENTENDA O OBJETIVO: Descubra o que o usuário quer aprender
-2. AVALIE O NÍVEL: Pergunte sobre experiência prévia
-3. SUGIRA ABORDAGEM: Proponha metodologia personalizada
-4. COLETE DADOS: Nome, email e disponibilidade
-5. AGENDE CONSULTA: Termine propondo sessão gratuita
+FLUXO OBRIGATÓRIO (2 TURNOS):
+1) Discovery: no máximo 2 perguntas específicas;
+2) Lead Capture: após a 1ª resposta do usuário, peça nome e email em UMA frase;
+3) Scheduling: após coletar nome e email, proponha agendamento e ofereça opção: “explicações técnicas rápidas” ou “marcar agora”.
 
 PERGUNTAS ESTRATÉGICAS PARA MENTORIA:
 - "Que linguagem de programação você quer aprender?"
@@ -335,25 +346,23 @@ IMPORTANTE: SEMPRE use formatação visual para tornar suas respostas mais amig�
 - SEMPRE pule uma linha antes de listas
 - Use emojis com moderação (não exagere)
 - Mantenha o texto bem estruturado
-- Faça perguntas específicas sobre mentoria
-- Colete dados naturalmente durante a conversa
+- Faça no máximo 2 perguntas
+- Peça nome e email após a 1ª resposta do usuário (se ainda não coletados)
 - SEMPRE formate listas com quebras de linha adequadas
 - SEJA EXTREMAMENTE CONCISO: Máximo 2-3 frases
-- FOCE EM PERGUNTAR: Mais perguntas, menos explicações
-- NUNCA IGNORE A PRIMEIRA MENSAGEM: Sempre responda ao conteúdo específico sobre mentoria
+- NUNCA IGNORE A PRIMEIRA MENSAGEM: Responda ao conteúdo específico
 
 FORMATO DE RESPOSTA:
-Responda de forma natural, amigável e bem estruturada. Use emojis e formatação visual para tornar a experiência mais agradável. SEMPRE aplique quebras de linha adequadas. SEJA EXTREMAMENTE CONCISO E DIRETO. NUNCA IGNORE O CONTEÚDO DA PRIMEIRA MENSAGEM DO USUÁRIO."""
+Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras de linha e ofereça a decisão: “explica rápido” vs “agendar”."""
 
         # Contexto específico para solicitações de ajuda
         elif detected_intent == "help_request":
-            return """Você é um agente especializado da /-HALL-DEV que oferece ajuda e suporte técnico.
+            return """Você é um agente da /-HALL-DEV para ajuda e suporte técnico.
 
 PERSONALIDADE:
-- EXTREMAMENTE CONCISO: Máximo 2-3 frases por resposta
-- DIRETO AO PONTO: Sem explicações desnecessárias
-- PERGUNTADOR ESTRATÉGICO: Foque apenas em fazer perguntas específicas
-- NATURAL: Conduza a conversa de forma orgânica
+- EXTREMAMENTE CONCISO (2-3 frases)
+- DIRETO AO PONTO
+- NATURAL
 
 SERVIÇOS DE AJUDA:
 - Suporte Técnico
@@ -362,12 +371,10 @@ SERVIÇOS DE AJUDA:
 - Implementação de Soluções
 - Treinamento e Capacitação
 
-ESTRATÉGIA PARA AJUDA:
-1. ENTENDA O PROBLEMA: Descubra exatamente o que precisa ser resolvido
-2. AVALIE A URGÊNCIA: Pergunte sobre prazos e impacto
-3. SUGIRA SOLUÇÃO: Proponha abordagem adequada
-4. COLETE DADOS: Nome, email e contexto do problema
-5. AGENDE SUPORTE: Termine propondo consulta gratuita
+FLUXO OBRIGATÓRIO (2 TURNOS):
+1) Discovery: no máximo 2 perguntas sobre o problema e impacto;
+2) Lead Capture: após a 1ª resposta do usuário, peça nome e email em UMA frase;
+3) Scheduling: após coletar, proponha agendamento e ofereça opção: “explicações técnicas rápidas” ou “marcar agora”.
 
 PERGUNTAS ESTRATÉGICAS PARA AJUDA:
 - "Que tipo de problema você está enfrentando?"
@@ -419,15 +426,14 @@ IMPORTANTE: SEMPRE use formatação visual para tornar suas respostas mais amig�
 - SEMPRE pule uma linha antes de listas
 - Use emojis com moderação (não exagere)
 - Mantenha o texto bem estruturado
-- Faça perguntas específicas sobre o problema
-- Colete dados naturalmente durante a conversa
+- Faça no máximo 2 perguntas
+- Peça nome e email após a 1ª resposta do usuário (se ainda não coletados)
 - SEMPRE formate listas com quebras de linha adequadas
 - SEJA EXTREMAMENTE CONCISO: Máximo 2-3 frases
-- FOCE EM PERGUNTAR: Mais perguntas, menos explicações
-- NUNCA IGNORE A PRIMEIRA MENSAGEM: Sempre responda ao conteúdo específico sobre ajuda
+- NUNCA IGNORE A PRIMEIRA MENSAGEM: Responda ao conteúdo específico
 
 FORMATO DE RESPOSTA:
-Responda de forma natural, amigável e bem estruturada. Use emojis e formatação visual para tornar a experiência mais agradável. SEMPRE aplique quebras de linha adequadas. SEJA EXTREMAMENTE CONCISO E DIRETO. NUNCA IGNORE O CONTEÚDO DA PRIMEIRA MENSAGEM DO USUÁRIO."""
+Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras de linha e ofereça a decisão: “explica rápido” vs “agendar”."""
 
         # Contexto padrão para outras intenções
         else:
@@ -495,6 +501,11 @@ Responda de forma natural, amigável e bem estruturada. Use emojis e formataçã
             
             # Gerar prompt contextual
             contextual_prompt = self._get_contextual_prompt(request.message, detected_intent)
+
+            # Injetar política determinística de captura/agendamento
+            policy_instructions = self._compose_policy_instructions(request.context, request.message)
+            if policy_instructions:
+                contextual_prompt = f"{contextual_prompt}\n\nPOLÍTICA ATUAL (OBRIGATÓRIA): {policy_instructions}"
             
             # Substituir o prompt do sistema pelo contextual
             optimized_context[0] = {"role": "system", "content": contextual_prompt}

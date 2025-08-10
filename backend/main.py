@@ -281,7 +281,11 @@ async def send_message(request: LLMRequest):
         llm_request = LLMRequest(
             session_id=request.session_id,
             message=request.message,
-            context={"messages": session.messages}  # Incluir TODAS as mensagens
+            context={
+                "messages": session.messages,
+                "phase": session.phase if hasattr(session, 'phase') else None,
+                "user_profile": session.user_profile or {}
+            }
         )
         
         response = await llm_service.generate_response(llm_request)
@@ -629,23 +633,31 @@ async def get_dashboard_stats():
         )
 
 @app.get("/dashboard/conversation-summaries")
-async def get_conversation_summaries(limit: int = 50):
+async def get_conversation_summaries(limit: int = 50, offset: int = 0):
     """
     Endpoint para recuperar resumos de conversa
     """
     try:
-        summaries = db_manager.get_all_conversation_summaries(limit=limit)
+        summaries = db_manager.get_all_conversation_summaries(limit=limit, offset=offset)
         
         return {
             "summaries": summaries,
             "total": len(summaries)
         }
-        
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao recuperar resumos: {str(e)}"
         )
+
+@app.delete("/dashboard/conversations/{session_id}")
+async def delete_conversation(session_id: str):
+    """Exclui uma conversa (mensagens e resumo) do banco."""
+    try:
+        result = db_manager.delete_conversation(session_id)
+        return {"success": True, "session_id": session_id, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir conversa: {str(e)}")
 
 @app.get("/dashboard/conversation-summaries/{session_id}")
 async def get_conversation_summary_details(session_id: str):

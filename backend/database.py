@@ -202,16 +202,16 @@ class DatabaseManager:
             
             return None
     
-    def get_all_conversation_summaries(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Recupera todos os resumos de conversa"""
+    def get_all_conversation_summaries(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Recupera todos os resumos de conversa com paginação opcional"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
             cursor.execute("""
                 SELECT * FROM conversation_summaries 
                 ORDER BY created_at DESC 
-                LIMIT ?
-            """, (limit,))
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
             
             summaries = []
             for row in cursor.fetchall():
@@ -257,6 +257,25 @@ class DatabaseManager:
                 )
 
             return messages
+
+    def delete_conversation(self, session_id: str) -> Dict[str, int]:
+        """Exclui mensagens e resumo de conversa para um session_id"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            # Deletar mensagens
+            cursor.execute("DELETE FROM conversations WHERE session_id = ?", (session_id,))
+            deleted_messages = cursor.rowcount if hasattr(cursor, 'rowcount') else 0
+
+            # Deletar resumo
+            cursor.execute("DELETE FROM conversation_summaries WHERE session_id = ?", (session_id,))
+            deleted_summaries = cursor.rowcount if hasattr(cursor, 'rowcount') else 0
+
+            conn.commit()
+            return {
+                "deleted_messages": int(deleted_messages or 0),
+                "deleted_summaries": int(deleted_summaries or 0),
+            }
     
     def get_lead(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Recupera um lead pelo session_id"""

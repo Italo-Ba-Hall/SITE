@@ -6,7 +6,7 @@ Gerenciador de Sessões de Chat
 import uuid
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
-from schemas import ChatSession, ChatMessage, MessageRole, UserProfile
+from schemas import ChatSession, ChatMessage, MessageRole, UserProfile, Phase
 from llm_service import llm_service
 from database import db_manager
 from notification_service import notification_service
@@ -98,6 +98,9 @@ class ChatManager:
         # Remover aviso de inatividade se usuário respondeu
         if session_id in self.inactivity_warnings:
             del self.inactivity_warnings[session_id]
+
+        # Atualizar fase conforme progresso
+        self._advance_phase(session)
         
         return True
     
@@ -112,8 +115,57 @@ class ChatManager:
         
         session.user_profile.update(profile_data)
         session.updated_at = datetime.now()
-        
+
+        # Atualizar fase ao obter dados do perfil
+        self._advance_phase(session)
+
+        # Auto-persistir lead e conversa ao capturar email pela primeira vez
+        try:
+            has_email = bool(session.user_profile.get('email'))
+            if has_email:
+                existing = db_manager.get_lead(session.session_id)
+                if not existing:
+                    self._persist_conversation_messages(session)
+                    self._save_lead_from_session(session, save_full_conversation=True)
+        except Exception:
+            pass
+
         return True
+
+    def _advance_phase(self, session: ChatSession) -> None:
+        """Atualiza a fase da sessão com base nas mensagens e dados coletados"""
+        try:
+            # Se ainda em discovery e já houve pelo menos 1 mensagem do usuário, ir para captura de lead
+            if session.phase == Phase.DISCOVERY:
+                user_msgs = [m for m in session.messages if m.role == MessageRole.USER]
+                if len(user_msgs) >= 1:
+                    session.phase = Phase.LEAD_CAPTURE
+
+            # Se já temos nome e email, ir para fase de agendamento
+            has_name = bool((session.user_profile or {}).get('name'))
+            has_email = bool((session.user_profile or {}).get('email'))
+            if has_name and has_email:
+                session.phase = Phase.SCHEDULING
+        except Exception:
+            # Não interromper fluxo por erro não crítico de fase
+            pass
+
+    def _persist_conversation_messages(self, session: ChatSession) -> None:
+        """Persiste as mensagens atuais da sessão na tabela de conversas."""
+        try:
+            if not session.messages:
+                return
+            messages_data: List[Dict] = []
+            for msg in session.messages:
+                messages_data.append({
+                    'role': msg.role.value,
+                    'content': msg.content,
+                    'metadata': msg.metadata,
+                    'timestamp': msg.timestamp
+                })
+            db_manager.save_conversation(session.session_id, messages_data)
+        except Exception:
+            pass
     
     def end_session(self, session_id: str, reason: Optional[str] = None) -> Optional[ChatSession]:
         """Finaliza uma sessão de chat e salva os dados do lead"""
@@ -175,6 +227,25 @@ class ChatManager:
                 qualification_score=qualification_score,
                 full_conversation=session.messages if save_full_conversation else None
             )
+
+            # Garantir que exista um resumo em conversation_summaries para o dashboard
+            try:
+                # Detectar intenções principais
+                intents: List[str] = []
+                for msg in session.messages:
+                    if msg.role == MessageRole.USER:
+                        intent = llm_service._detect_intent(msg.content)
+                        if intent:
+                            intents.append(intent)
+                duration_minutes = (session.updated_at - session.created_at).total_seconds() / 60
+                db_manager.save_conversation_summary(
+                    session_id=session.session_id,
+                    summary=conversation_summary,
+                    intents=list(set(intents)),
+                    duration_minutes=duration_minutes,
+                )
+            except Exception:
+                pass
             
             # Notificar equipe
             lead_data = {

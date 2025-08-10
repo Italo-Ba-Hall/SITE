@@ -21,15 +21,22 @@ class ChatMessage(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
     metadata: Optional[Dict[str, Any]] = None
 
+class Phase(str, Enum):
+    """Fases do fluxo de conversa"""
+    DISCOVERY = "discovery"
+    LEAD_CAPTURE = "lead_capture"
+    SCHEDULING = "scheduling"
+
 class ChatSession(BaseModel):
     """Schema para sessão de chat"""
     session_id: str
     user_id: Optional[str] = None
-    messages: List[ChatMessage] = []
+    messages: List[ChatMessage] = Field(default_factory=list)
     user_profile: Optional[Dict[str, str]] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
+    phase: Phase = Phase.DISCOVERY
 
 class LLMRequest(BaseModel):
     """Schema para requisição ao LLM"""

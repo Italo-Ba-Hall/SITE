@@ -10,7 +10,8 @@ body {
   background-color: #080808;
   color: #ffffff;
   font-family: 'Roboto Mono', monospace;
-  overflow: hidden;
+  /* Permitir rolagem por padrão; páginas que não devem rolar controlam localmente */
+  overflow-y: auto;
   margin: 0;
   padding: 0;
 }

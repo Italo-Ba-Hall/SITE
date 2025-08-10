@@ -64,6 +64,13 @@ const Dashboard: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [onlyCollected, setOnlyCollected] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [leadsLoaded, setLeadsLoaded] = useState(false);
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+  const [conversationsOffset, setConversationsOffset] = useState(0);
+  const PAGE_SIZE = 50;
 
   const sortedConversations = useMemo(() => {
     const clone = [...conversations];
@@ -77,41 +84,88 @@ const Dashboard: React.FC = () => {
     });
   }, [conversations]);
   
-  const loadDashboardData = useCallback(async () => {
+  const loadConversations = useCallback(async (reset = false) => {
     try {
-      setLoading(true);
-      
-      // Carregar leads
-      const leadsResponse = await apiCall<{leads: Lead[], stats: DashboardStats, total_leads: number}>('/dashboard/leads', {
-        params: { limit: 100 }
-      });
-      setLeads(leadsResponse.leads || []);
-      
-      // Carregar conversas
-      const conversationsResponse = await apiCall<{summaries: ConversationSummary[]}>('/dashboard/conversation-summaries', {
-        params: { limit: 50 }
-      });
-      setConversations(conversationsResponse.summaries || []);
-      
-      // Carregar notificações
-      const notificationsResponse = await apiCall<{notifications: Notification[], total: number}>('/dashboard/notifications');
-      setNotifications(notificationsResponse.notifications || []);
-      
-      // Carregar estatísticas
-      const statsResponse = await apiCall<{database: DashboardStats, chat: Record<string, unknown>, llm: Record<string, unknown>, timestamp: string}>('/dashboard/stats');
-      setStats(statsResponse.database);
-      
+      setLoadingConversations(true);
+      const conversationsResponse = await apiCall<{summaries: ConversationSummary[]}>(
+        '/dashboard/conversation-summaries',
+        { params: { limit: PAGE_SIZE, offset: reset ? 0 : conversationsOffset } }
+      );
+      const newItems = conversationsResponse.summaries || [];
+      if (reset) {
+        setConversations(newItems);
+        setConversationsOffset(newItems.length);
+      } else {
+        setConversations((prev) => [...prev, ...newItems]);
+        setConversationsOffset((prev) => prev + newItems.length);
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Erro ao carregar dashboard:', error);
+      console.error('Erro ao carregar conversas:', error);
     } finally {
-      setLoading(false);
+      setLoadingConversations(false);
+    }
+  }, [conversationsOffset]);
+
+  const loadLeads = useCallback(async () => {
+    try {
+      setLoadingLeads(true);
+      const leadsResponse = await apiCall<{leads: Lead[], stats: DashboardStats, total_leads: number}>(
+        '/dashboard/leads',
+        { params: { limit: 100 } }
+      );
+      setLeads(leadsResponse.leads || []);
+      setLeadsLoaded(true);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Erro ao carregar leads:', error);
+    } finally {
+      setLoadingLeads(false);
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      setLoadingNotifications(true);
+      const notificationsResponse = await apiCall<{notifications: Notification[], total: number}>('/dashboard/notifications');
+      setNotifications(notificationsResponse.notifications || []);
+      setNotificationsLoaded(true);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Erro ao carregar notificações:', error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const statsResponse = await apiCall<{database: DashboardStats, chat: Record<string, unknown>, llm: Record<string, unknown>, timestamp: string}>('/dashboard/stats');
+      setStats(statsResponse.database);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Erro ao carregar estatísticas:', error);
     }
   }, []);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    // carregar conversas e stats primeiro
+    setLoading(true);
+    Promise.all([loadConversations(true), loadStats()]).finally(() => setLoading(false));
+    // carregar notificações com leve atraso
+    const t = setTimeout(() => {
+      if (!notificationsLoaded) {
+        loadNotifications();
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [loadConversations, loadStats, loadNotifications, notificationsLoaded]);
+
+  useEffect(() => {
+    if (activeTab === 'leads' && !leadsLoaded) {
+      loadLeads();
+    }
+  }, [activeTab, leadsLoaded, loadLeads]);
 
   const updateLeadStatus = async (sessionId: string, newStatus: string) => {
     // Atualização otimista
@@ -122,8 +176,11 @@ const Dashboard: React.FC = () => {
         method: 'PUT',
         params: { status: newStatus }
       });
-      // Recarregar stats/notifications de leve
-      loadDashboardData();
+      // Recarregar stats e notificações de leve
+      loadStats();
+      if (notificationsLoaded) {
+        loadNotifications();
+      }
     } catch (error) {
       // Reverter em caso de erro
       setLeads(prevLeads);
@@ -225,6 +282,24 @@ const Dashboard: React.FC = () => {
     });
   };
 
+  const handleDeleteConversation = useCallback(async (sessionId: string) => {
+    const confirmed = window.confirm('Excluir esta conversa? Esta ação não pode ser desfeita.');
+    if (!confirmed) return;
+
+    try {
+      const res = await apiCall<{ success: boolean }>(`/dashboard/conversations/${sessionId}`, {
+        method: 'DELETE',
+      });
+      if (res && res.success) {
+        // Remover do estado atual
+        setConversations((prev) => prev.filter((c) => c.session_id !== sessionId));
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Erro ao excluir conversa:', error);
+    }
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new': return 'bg-blue-100 text-blue-800';
@@ -276,7 +351,12 @@ const Dashboard: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={loadDashboardData}
+              onClick={() => {
+                if (activeTab === 'conversations') loadConversations();
+                if (activeTab === 'leads') loadLeads();
+                if (!notificationsLoaded) loadNotifications();
+                loadStats();
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center"
             >
               <span className="mr-2">🔄</span>
@@ -379,7 +459,9 @@ const Dashboard: React.FC = () => {
               {activeTab === 'conversations' ? (
                 /* Conversas */
                 <div className="overflow-y-auto max-h-[70vh]">
-                      {sortedConversations.length > 0 ? (
+                  {loadingConversations ? (
+                    <div className="p-6 text-gray-500">Carregando conversas...</div>
+                  ) : sortedConversations.length > 0 ? (
                     <div className="divide-y divide-gray-200">
                       {sortedConversations.map((conversation) => (
                         <div key={conversation.id} className="p-6 hover:bg-gray-50 transition-colors duration-150">
@@ -408,15 +490,31 @@ const Dashboard: React.FC = () => {
                                 {conversation.summary}
                               </p>
                             </div>
-                            <button
-                              onClick={() => handleViewConversationDetails(conversation)}
-                              className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200"
-                            >
-                              👁️ Ver
-                            </button>
+                            <div className="ml-4 flex items-center space-x-2">
+                              <button
+                                onClick={() => handleViewConversationDetails(conversation)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200"
+                              >
+                                👁️ Ver
+                              </button>
+                              <button
+                                onClick={() => handleDeleteConversation(conversation.session_id)}
+                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200"
+                              >
+                                🗑️ Excluir
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
+                      <div className="p-4 flex justify-center">
+                        <button
+                          onClick={() => loadConversations(false)}
+                          className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:border-gray-400"
+                        >
+                          Carregar mais
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="p-8 text-center">
@@ -481,7 +579,11 @@ const Dashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedLeads.length > 0 ? (
+                      {loadingLeads ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Carregando leads...</td>
+                        </tr>
+                      ) : paginatedLeads.length > 0 ? (
                         paginatedLeads.map((lead) => (
                           <tr key={lead.id} className="hover:bg-gray-50 transition-colors duration-150">
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -579,7 +681,9 @@ const Dashboard: React.FC = () => {
               </div>
               
               <div className="overflow-y-auto max-h-96">
-                {notifications.length > 0 ? (
+                {loadingNotifications ? (
+                  <div className="p-6 text-gray-500">Carregando notificações...</div>
+                ) : notifications.length > 0 ? (
                   <div className="divide-y divide-gray-200">
                     {notifications.map((notification) => (
                       <div key={notification.id} className={`p-4 ${!notification.is_read ? 'bg-blue-50 border-l-4 border-blue-400' : ''}`}>

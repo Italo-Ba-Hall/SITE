@@ -57,10 +57,31 @@ const AdminAccess: React.FC = () => {
     }
   }, []);
 
+  // Forçar estilo do body adequado para o dashboard admin (sem afetar público)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const prev = {
+      overflow: document.body.style.overflow,
+      background: document.body.style.background,
+      color: document.body.style.color,
+      fontFamily: document.body.style.fontFamily,
+    };
+    document.body.style.overflow = 'auto';
+    document.body.style.background = '#f8fafc'; // cinza claro
+    document.body.style.color = '#111827'; // cinza-900
+    document.body.style.fontFamily = 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+    return () => {
+      document.body.style.overflow = prev.overflow;
+      document.body.style.background = prev.background;
+      document.body.style.color = prev.color;
+      document.body.style.fontFamily = prev.fontFamily;
+    };
+  }, [isAdmin]);
+
   if (!isAdmin) return null; // Não renderiza nada se não for admin
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto text-gray-900">
       {/* Topbar */}
       <div className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
