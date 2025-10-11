@@ -5,4 +5,5 @@ python-multipart==0.0.20
 groq==0.31.0
 python-dotenv==1.0.0
 requests==2.31.0
-psutil==5.9.8 
+psutil==5.9.8
+ruff==0.14.0 

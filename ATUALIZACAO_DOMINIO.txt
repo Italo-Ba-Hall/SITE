@@ -1,0 +1,77 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    ATUALIZAÇÃO DE DOMÍNIO REALIZADA                         ║
+║                        http://barrahall.dev.br/                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+✅ ARQUIVOS ATUALIZADOS:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BACKEND                                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📄 backend/main.py
+   • CORS configurado para aceitar barrahall.dev.br
+   • Removido webftp.spcompsolucoes.com.br
+   • Adicionado suporte HTTPS e HTTP
+
+📄 backend/.env.production.example
+   • FRONTEND_URL=http://barrahall.dev.br
+   • Template atualizado para produção
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DOCUMENTAÇÃO                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📄 DEPLOY_INSTRUCTIONS.md
+   • Todas as referências atualizadas para barrahall.dev.br
+   • URLs de teste corrigidas
+   • Configurações de CORS atualizadas
+
+📄 RESUMO_DEPLOY.txt
+   • Checklist de verificação atualizado
+   • URLs de teste corrigidas
+
+📄 COMANDOS_RAPIDOS.txt
+   • Comandos de teste atualizados
+   • URLs de verificação corrigidas
+
+📄 FTP_FILES_CHECKLIST.txt
+   • URL de verificação pós-upload atualizada
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 CONFIGURAÇÕES IMPORTANTES:
+
+Backend (CORS):
+• http://barrahall.dev.br
+• https://barrahall.dev.br
+• http://localhost:3000 (desenvolvimento)
+
+Frontend:
+• REACT_APP_API_URL será configurado após deploy do backend
+• Site será acessível em: http://barrahall.dev.br
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 PRÓXIMOS PASSOS:
+
+1. ✅ Domínio atualizado em todos os arquivos
+2. ⏳ Fazer upload dos arquivos para FTP
+3. ⏳ Deploy do backend (Railway/PythonAnywhere)
+4. ⏳ Configurar FRONTEND_URL no backend
+5. ⏳ Atualizar REACT_APP_API_URL no frontend
+6. ⏳ Refazer build e re-enviar para FTP
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔗 URLs IMPORTANTES:
+
+• Site: http://barrahall.dev.br
+• FTP: webftp.spcompsolucoes.com.br
+• Backend: (será definido após deploy)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Status: ✅ DOMÍNIO ATUALIZADO COM SUCESSO
+Próximo: Fazer upload para FTP
+

@@ -3,36 +3,48 @@ Serviço de LLM usando Groq
 /-HALL-DEV Backend
 """
 
-import os
-import json
-import uuid
 import hashlib
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+import json
+import logging
+import os
+import uuid
 from collections import OrderedDict
+from datetime import datetime, timedelta
+from typing import Any
+
 import groq
 from dotenv import load_dotenv
 
-from schemas import ChatMessage, MessageRole, UserProfile, LLMRequest, LLMResponse, Phase
+from schemas import (
+    ChatMessage,
+    LLMRequest,
+    LLMResponse,
+    MessageRole,
+    Phase,
+)
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # Carregar variáveis de ambiente
 load_dotenv()
 
+
 class LLMCache:
     """Sistema de cache para respostas do LLM"""
-    
+
     def __init__(self, max_size: int = 1000, ttl_hours: int = 24):
-        self.cache: OrderedDict[str, Dict] = OrderedDict()
+        self.cache: OrderedDict[str, dict] = OrderedDict()
         self.max_size = max_size
         self.ttl = timedelta(hours=ttl_hours)
-    
-    def _generate_key(self, messages: List[Dict], user_message: str) -> str:
+
+    def _generate_key(self, messages: list[dict], user_message: str) -> str:
         """Gera chave única para cache baseada no contexto e mensagem"""
         context_str = json.dumps([msg["content"] for msg in messages], sort_keys=True)
         combined = f"{context_str}:{user_message}"
-        return hashlib.md5(combined.encode()).hexdigest()
-    
-    def get(self, key: str) -> Optional[LLMResponse]:
+        return hashlib.sha256(combined.encode()).hexdigest()
+
+    def get(self, key: str) -> LLMResponse | None:
         """Recupera resposta do cache"""
         if key in self.cache:
             cached = self.cache[key]
@@ -43,61 +55,60 @@ class LLMCache:
             else:
                 del self.cache[key]
         return None
-    
+
     def set(self, key: str, response: LLMResponse):
         """Armazena resposta no cache"""
         if len(self.cache) >= self.max_size:
             # Remove item mais antigo (primeiro da OrderedDict) - O(1)
             self.cache.popitem(last=False)
-        
-        self.cache[key] = {
-            "response": response,
-            "timestamp": datetime.now()
-        }
+
+        self.cache[key] = {"response": response, "timestamp": datetime.now()}
         # Mover para o final (LRU)
         self.cache.move_to_end(key)
-    
+
     def clear_expired(self):
         """Remove itens expirados do cache"""
         current_time = datetime.now()
         expired_keys = [
-            key for key, value in self.cache.items()
+            key
+            for key, value in self.cache.items()
             if current_time - value["timestamp"] > self.ttl
         ]
         for key in expired_keys:
             del self.cache[key]
-    
-    def get_stats(self) -> Dict:
+
+    def get_stats(self) -> dict:
         """Retorna estatísticas do cache"""
         return {
             "size": len(self.cache),
             "max_size": self.max_size,
-            "ttl_hours": self.ttl.total_seconds() / 3600
+            "ttl_hours": self.ttl.total_seconds() / 3600,
         }
+
 
 class LLMService:
     """Serviço para integração com Groq LLM"""
-    
+
     def __init__(self):
         # Verificar se API key está definida
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
             raise ValueError("GROQ_API_KEY não está definida no ambiente")
-        
+
         self.client = groq.Groq(api_key=api_key)
         # Modelo mais robusto: Llama-3-70B vs 8B anterior
         self.model = "llama3-70b-8192"  # Modelo premium gratuito do Groq
         self.max_tokens = 1500  # Aumentado para aproveitar modelo maior
         self.temperature = 0.25
-        
+
         # Cache de respostas
         self.cache = LLMCache(max_size=500, ttl_hours=12)
-        
+
         # Rate limiting
         self.request_count = 0
         self.last_reset = datetime.now()
         self.max_requests_per_minute = 60
-        
+
         # Personalidade do agente
         self.system_prompt = """Você é um agente conversacional especializado da /-HALL-DEV.
 
@@ -129,31 +140,30 @@ REGRAS GERAIS:
     def _check_rate_limit(self) -> bool:
         """Verifica se não excedeu o rate limit"""
         current_time = datetime.now()
-        
+
         # Reset contador a cada minuto
         if current_time - self.last_reset > timedelta(minutes=1):
             self.request_count = 0
             self.last_reset = current_time
-        
+
         if self.request_count >= self.max_requests_per_minute:
             return False
-        
+
         self.request_count += 1
         return True
 
-    def _build_conversation_context(self, messages: List[ChatMessage]) -> List[Dict[str, str]]:
+    def _build_conversation_context(
+        self, messages: list[ChatMessage]
+    ) -> list[dict[str, str]]:
         """Constrói o contexto da conversa para o LLM"""
         context = [{"role": "system", "content": self.system_prompt}]
-        
+
         for message in messages:
-            context.append({
-                "role": message.role.value,
-                "content": message.content
-            })
-        
+            context.append({"role": message.role.value, "content": message.content})
+
         return context
 
-    def _get_phase_from_context(self, ctx: Optional[Dict[str, Any]]) -> Optional[str]:
+    def _get_phase_from_context(self, ctx: dict[str, Any] | None) -> str | None:
         if not ctx:
             return None
         phase_val = ctx.get("phase")
@@ -165,16 +175,23 @@ REGRAS GERAIS:
 
     def _compose_policy_instructions(
         self,
-        ctx: Optional[Dict[str, Any]],
+        ctx: dict[str, Any] | None,
         user_message: str,
     ) -> str:
         """Gera instruções de política contextuais para garantir coleta e agendamento."""
-        policy_parts: List[str] = []
+        policy_parts: list[str] = []
 
         # Detectar incerteza para encurtar e conduzir
         user_lower = user_message.lower()
         uncertainty = any(
-            k in user_lower for k in ["não sei", "nao sei", "preciso de orienta", "não entendo", "nao entendo"]
+            k in user_lower
+            for k in [
+                "não sei",
+                "nao sei",
+                "preciso de orienta",
+                "não entendo",
+                "nao entendo",
+            ]
         )
 
         phase = self._get_phase_from_context(ctx)
@@ -186,10 +203,13 @@ REGRAS GERAIS:
         user_count = 0
         for m in (ctx or {}).get("messages", []) or []:
             try:
-                if getattr(m, "role", None) == MessageRole.USER or (isinstance(m, dict) and (m.get("role") == "user" or m.get("role") == MessageRole.USER)):
+                if getattr(m, "role", None) == MessageRole.USER or (
+                    isinstance(m, dict)
+                    and (m.get("role") == "user" or m.get("role") == MessageRole.USER)
+                ):
                     user_count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Erro ao processar mensagem do contexto: {e}")
 
         # Regra: após a 1ª mensagem do usuário, pedir nome e email se faltarem
         if user_count >= 1 and (not has_name or not has_email):
@@ -210,71 +230,92 @@ REGRAS GERAIS:
 
         # Fase específica pode reforçar comportamento
         if phase == "lead_capture" and (not has_name or not has_email):
-            policy_parts.append("Estamos em LEAD_CAPTURE: priorize coletar NOME e EMAIL nesta resposta.")
+            policy_parts.append(
+                "Estamos em LEAD_CAPTURE: priorize coletar NOME e EMAIL nesta resposta."
+            )
         if phase == "scheduling" and has_name and has_email:
-            policy_parts.append("Estamos em SCHEDULING: foque em confirmar data/horário de reunião.")
+            policy_parts.append(
+                "Estamos em SCHEDULING: foque em confirmar data/horário de reunião."
+            )
 
         # Sempre limitar perguntas
         policy_parts.append("No máximo 2 perguntas na resposta.")
 
         return " ".join(policy_parts).strip()
 
-    def _extract_user_profile(self, message: str) -> Optional[Dict[str, str]]:
+    def _extract_user_profile(self, message: str) -> dict[str, str] | None:
         """Extrai informações do usuário da mensagem"""
         # Lógica simples de extração - pode ser melhorada
         profile = {}
-        
+
         # Extrair nome (padrões comuns)
         import re
+
         name_patterns = [
             r"meu nome é\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
             r"eu sou\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
             r"chamo-me\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
-            r"sou\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})"
+            r"sou\s+([\wÀ-ÖØ-öø-ÿ\s]{2,})",
         ]
-        
+
         for pattern in name_patterns:
             match = re.search(pattern, message.lower())
             if match:
                 profile["name"] = match.group(1).strip().title()
                 break
-        
+
         # Extrair email
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
         email_match = re.search(email_pattern, message)
         if email_match:
             profile["email"] = email_match.group(0)
-        
+
         return profile if profile else None
 
-    def _detect_intent(self, message: str) -> Optional[str]:
+    def _detect_intent(self, message: str) -> str | None:
         """Detecta a intenção da mensagem do usuário"""
         message_lower = message.lower()
-        
+
         intents = {
             "greeting": ["olá", "oi", "bom dia", "boa tarde", "boa noite"],
             "mentoring": ["mentoria", "mentor"],
             "learning": ["aprender", "estudar", "curso", "treinamento", "formação"],
-            "programming": ["programar", "programação", "código", "desenvolver", "coding"],
-            "self_learning": ["sozinho", "autodidata", "independente", "por conta própria"],
+            "programming": [
+                "programar",
+                "programação",
+                "código",
+                "desenvolver",
+                "coding",
+            ],
+            "self_learning": [
+                "sozinho",
+                "autodidata",
+                "independente",
+                "por conta própria",
+            ],
             "help_request": ["ajudar", "ajuda", "suporte", "assistência"],
-            "problem_description": ["problema", "dificuldade", "dor", "preciso", "quero"],
+            "problem_description": [
+                "problema",
+                "dificuldade",
+                "dor",
+                "preciso",
+                "quero",
+            ],
             "service_inquiry": ["serviço", "solução", "desenvolvimento", "software"],
             "contact_info": ["contato", "email", "telefone", "whatsapp"],
             "pricing": ["preço", "valor", "custo", "orçamento"],
-            "technical": ["tecnologia", "programação", "código", "sistema"]
+            "technical": ["tecnologia", "programação", "código", "sistema"],
         }
-        
+
         for intent, keywords in intents.items():
             if any(keyword in message_lower for keyword in keywords):
                 return intent
-        
+
         return None
 
-    def _get_contextual_prompt(self, message: str, detected_intent: Optional[str]) -> str:
+    def _get_contextual_prompt(self, message: str, detected_intent: str | None) -> str:
         """Gera prompt contextual baseado na intenção detectada"""
-        message_lower = message.lower()
-        
+
         # Contexto específico para mentoria e aprendizado
         if detected_intent in ["mentoring", "learning", "programming", "self_learning"]:
             return """Você é um agente da /-HALL-DEV para mentoria/treinamento em programação.
@@ -439,15 +480,17 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
         else:
             return self.system_prompt
 
-    def _optimize_prompt_size(self, context: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    def _optimize_prompt_size(
+        self, context: list[dict[str, str]]
+    ) -> list[dict[str, str]]:
         """Otimiza o tamanho do prompt para reduzir tokens"""
         if len(context) <= 10:  # Se já é pequeno, retorna como está
             return context
-        
+
         # Manter system prompt e últimas 8 mensagens
         optimized = [context[0]]  # System prompt
         optimized.extend(context[-8:])  # Últimas 8 mensagens
-        
+
         return optimized
 
     async def generate_response(self, request: LLMRequest) -> LLMResponse:
@@ -459,78 +502,83 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
                     message="Por favor, digite uma mensagem para que eu possa te ajudar.",
                     session_id=request.session_id,
                     confidence=0.0,
-                    metadata={"error": "empty_message"}
+                    metadata={"error": "empty_message"},
                 )
-            
+
             # Verificar rate limit
             if not self._check_rate_limit():
                 return LLMResponse(
                     message="Desculpe, estamos com muitas solicitações no momento. Tente novamente em alguns instantes.",
                     session_id=request.session_id,
                     confidence=0.0,
-                    metadata={"error": "rate_limit_exceeded"}
+                    metadata={"error": "rate_limit_exceeded"},
                 )
-            
+
             # Construir contexto da conversa
-            conversation_context = self._build_conversation_context(request.context.get("messages", []))
-            
+            conversation_context = self._build_conversation_context(
+                request.context.get("messages", [])
+            )
+
             # Otimizar tamanho do prompt
             optimized_context = self._optimize_prompt_size(conversation_context)
-            
+
             # Adicionar mensagem atual do usuário
-            optimized_context.append({
-                "role": "user",
-                "content": request.message
-            })
-            
+            optimized_context.append({"role": "user", "content": request.message})
+
             # Verificar cache
-            cache_key = self.cache._generate_key(optimized_context[:-1], request.message)
+            cache_key = self.cache._generate_key(
+                optimized_context[:-1], request.message
+            )
             cached_response = self.cache.get(cache_key)
-            
+
             if cached_response:
                 cached_response.session_id = request.session_id
                 cached_response.metadata = {
                     **cached_response.metadata,
                     "cached": True,
-                    "cache_hit": True
+                    "cache_hit": True,
                 }
                 return cached_response
-            
+
             # Detectar intenção
             detected_intent = self._detect_intent(request.message)
-            
+
             # Gerar prompt contextual
-            contextual_prompt = self._get_contextual_prompt(request.message, detected_intent)
+            contextual_prompt = self._get_contextual_prompt(
+                request.message, detected_intent
+            )
 
             # Injetar política determinística de captura/agendamento
-            policy_instructions = self._compose_policy_instructions(request.context, request.message)
+            policy_instructions = self._compose_policy_instructions(
+                request.context, request.message
+            )
             if policy_instructions:
                 contextual_prompt = f"{contextual_prompt}\n\nPOLÍTICA ATUAL (OBRIGATÓRIA): {policy_instructions}"
-            
+
             # Substituir o prompt do sistema pelo contextual
             optimized_context[0] = {"role": "system", "content": contextual_prompt}
-            
+
             # Chamar Groq API
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=optimized_context,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
-                stream=False
+                stream=False,
             )
-            
+
             # Extrair resposta
             response_content = completion.choices[0].message.content
-            
+
             # Extrair informações do usuário
             user_profile = self._extract_user_profile(request.message)
-            
+
             # Usar a intenção já detectada
             intent = detected_intent
-            
+
             # Calcular confiança baseada na resposta
             confidence = 0.8  # Base inicial, pode ser melhorada
-            
+
             response = LLMResponse(
                 message=response_content,
                 session_id=request.session_id,
@@ -539,27 +587,29 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
                 confidence=confidence,
                 metadata={
                     "model": self.model,
-                    "tokens_used": completion.usage.total_tokens if hasattr(completion, 'usage') else None,
+                    "tokens_used": completion.usage.total_tokens
+                    if hasattr(completion, "usage")
+                    else None,
                     "timestamp": datetime.now().isoformat(),
                     "cached": False,
-                    "cache_hit": False
-                }
+                    "cache_hit": False,
+                },
             )
-            
+
             # Armazenar no cache
             self.cache.set(cache_key, response)
-            
+
             return response
-            
+
         except Exception as e:
             # Fallback em caso de erro
             fallback_response = "Desculpe, estou com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?"
-            
+
             return LLMResponse(
                 message=fallback_response,
                 session_id=request.session_id,
                 confidence=0.0,
-                metadata={"error": str(e), "fallback": True}
+                metadata={"error": str(e), "fallback": True},
             )
 
     def create_welcome_message(self) -> str:
@@ -576,12 +626,12 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
     def create_session_id(self) -> str:
         """Cria ID único para sessão"""
         return f"session_{uuid.uuid4().hex[:8]}"
-    
-    def get_cache_stats(self) -> Dict:
+
+    def get_cache_stats(self) -> dict:
         """Retorna estatísticas do cache"""
         return self.cache.get_stats()
-    
-    def get_stats(self) -> Dict:
+
+    def get_stats(self) -> dict:
         """Retorna estatísticas gerais do LLM Service"""
         return {
             "model": self.model,
@@ -589,17 +639,17 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
             "temperature": self.temperature,
             "cache_stats": self.cache.get_stats(),
             "request_count": self.request_count,
-            "max_requests_per_minute": self.max_requests_per_minute
+            "max_requests_per_minute": self.max_requests_per_minute,
         }
-    
+
     def clear_cache(self):
         """Limpa o cache"""
         self.cache.clear()
-    
+
     def cleanup_cache(self):
         """Remove itens expirados do cache"""
         self.cache.clear_expired()
-    
+
     def auto_cleanup_cache(self):
         """Limpeza automática do cache - chamar periodicamente"""
         if len(self.cache.cache) > self.cache.max_size * 0.8:  # Se 80% cheio
@@ -611,5 +661,6 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
                     if self.cache.cache:
                         self.cache.cache.popitem(last=False)
 
+
 # Instância global do serviço
-llm_service = LLMService() 
+llm_service = LLMService()

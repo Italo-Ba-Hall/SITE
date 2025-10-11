@@ -155,3 +155,6 @@ O dashboard administrativo está agora:
 - ✅ **Pronto para uso**
 
 Para acessar, use uma das formas descritas acima. 
+
+ACESSAR BACKEND NO DIRETORIO BACKEND COM PYTHON e FASTAPI start_server.py
+ACESSAR FRONTEND NO DIRETORIO FRONTEND COM TYPESCRIPT e REACT npm start
