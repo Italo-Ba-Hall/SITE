@@ -186,7 +186,7 @@ export const useSuggestions = (text: string) => {
 
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch('http://localhost:8000/suggest', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/suggest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -241,7 +241,7 @@ export const useContent = (suggestionId: string | null) => {
     content: string;
     details: Record<string, unknown>;
   }>(
-    suggestionId ? `http://localhost:8000/content/${suggestionId}` : '',
+    suggestionId ? `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/content/${suggestionId}` : '',
     { debounceMs: 0, cacheTimeout: 10 * 60 * 1000 } // Cache por 10 minutos
   );
 

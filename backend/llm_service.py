@@ -1,5 +1,5 @@
 """
-Serviço de LLM usando Groq
+Serviço de LLM usando Google Gemini
 /-HALL-DEV Backend
 """
 
@@ -12,7 +12,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Any
 
-import groq
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 from schemas import (
@@ -87,17 +87,16 @@ class LLMCache:
 
 
 class LLMService:
-    """Serviço para integração com Groq LLM"""
+    """Serviço para integração com Google Gemini LLM"""
 
     def __init__(self):
         # Verificar se API key está definida
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise ValueError("GROQ_API_KEY não está definida no ambiente")
+            raise ValueError("GEMINI_API_KEY não está definida no ambiente")
 
-        self.client = groq.Groq(api_key=api_key)
-        # Modelo mais robusto: Llama-3-70B vs 8B anterior
-        self.model = "llama3-70b-8192"  # Modelo premium gratuito do Groq
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
         self.max_tokens = 1500  # Aumentado para aproveitar modelo maior
         self.temperature = 0.25
 

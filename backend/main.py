@@ -2,14 +2,14 @@
 /-HALL-DEV Backend API
 Plataforma Conversacional para Captação e Qualificação de Leads
 
-Tecnologias: FastAPI + Python + Pydantic + Groq LLM
+Tecnologias: FastAPI + Python + Pydantic + Google Gemini LLM
 Arquitetura: API-First, Desacoplada do Frontend
 """
 
-import os  # Added for os.getenv
+import os
 from datetime import datetime
 
-import groq  # Added for groq test
+import google.generativeai as genai
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -500,14 +500,14 @@ async def detailed_health_check():
     Health check detalhado com informações do sistema
     """
     try:
-        # Verificar conexão com Groq (teste simples)
-        groq_status = "healthy"
+        # Verificar conexão com Gemini (teste simples)
+        gemini_status = "healthy"
         try:
             # Teste básico de conectividade
-            groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
+            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
             # Não fazer chamada real, apenas verificar se a chave é válida
         except Exception as e:
-            groq_status = f"error: {e!s}"
+            gemini_status = f"error: {e!s}"
 
         # Estatísticas do chat
         chat_stats = chat_manager.get_session_stats()
@@ -521,7 +521,7 @@ async def detailed_health_check():
             "version": "1.0.0",
             "timestamp": datetime.now().isoformat(),
             "services": {
-                "groq_api": groq_status,
+                "gemini_api": gemini_status,
                 "chat_manager": "healthy",
                 "llm_service": "healthy",
             },
