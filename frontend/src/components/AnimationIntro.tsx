@@ -114,7 +114,10 @@ const AnimationIntro: React.FC = () => {
       // Disparar evento para mudança de modo de animação
       const event = new CustomEvent('animationModeChange', { detail: { mode: 'circuit' } });
       window.dispatchEvent(event);
-      
+
+      // Marcar que a intro foi exibida (para não repetir ao voltar do playground)
+      sessionStorage.setItem('introShown', 'true');
+
       // Disparar evento para exibir conteúdo principal
       const contentEvent = new CustomEvent('showMainContent');
       window.dispatchEvent(contentEvent);

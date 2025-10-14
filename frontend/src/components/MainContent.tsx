@@ -34,6 +34,16 @@ const MainContent: React.FC = React.memo(() => {
       }, 2000);
     };
 
+    // Verificar se a animação já foi exibida (via sessionStorage)
+    const introShown = sessionStorage.getItem("introShown");
+    if (introShown === "true") {
+      // Se já mostrou a intro, mostrar conteúdo imediatamente
+      setIsVisible(true);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+
     window.addEventListener("showMainContent", handleShowMainContent);
 
     return () => {

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import usePlayground from "../hooks/usePlayground";
 import YouTube from "react-youtube";
 
 const PlaygroundPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     videoId,
     transcript,
@@ -38,27 +39,57 @@ const PlaygroundPage: React.FC = () => {
     );
   };
 
+  // Formatar transcrição para melhor legibilidade
+  const formatTranscript = (text: string) => {
+    if (!text) return text;
+
+    // Dividir em sentenças (aproximadamente) e criar parágrafos
+    // Quebrar a cada 3-4 sentenças para criar parágrafos
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const paragraphs: string[] = [];
+
+    for (let i = 0; i < sentences.length; i += 3) {
+      const paragraph = sentences.slice(i, i + 3).join(" ");
+      if (paragraph.trim()) {
+        paragraphs.push(paragraph.trim());
+      }
+    }
+
+    return paragraphs.join("\n\n");
+  };
+
   return (
     <div className="content visible" style={{ top: "5%", transform: "translate(-50%, 0)", maxWidth: "900px", width: "95%" }}>
       {/* Botão Voltar - Canto Superior Direito */}
-      <Link
-        to="/"
+      <button
+        onClick={() => navigate("/")}
         className="prompt-prefix"
         style={{
           position: "fixed",
           top: "2rem",
-          right: "2rem",
+          right: "-5rem",
           zIndex: 100,
           fontSize: "0.875rem",
-          textDecoration: "none",
+          background: "transparent",
+          border: "1px solid #00e5ff",
           color: "#00e5ff",
-          transition: "color 0.3s",
+          padding: "0.5rem 1rem",
+          borderRadius: "4px",
+          cursor: "pointer",
+          transition: "all 0.3s",
+          fontFamily: "'Roboto Mono', monospace",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#00b8cc")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "#00e5ff")}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.1)";
+          e.currentTarget.style.color = "#00b8cc";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.color = "#00e5ff";
+        }}
       >
         ← Voltar
-      </Link>
+      </button>
 
       {/* Logo */}
       <div className="logo" style={{ marginBottom: "1rem" }}>YouTube Playground</div>
@@ -322,13 +353,19 @@ const PlaygroundPage: React.FC = () => {
                 overflowY: "auto",
                 backgroundColor: "rgba(0, 0, 0, 0.5)",
                 borderRadius: "4px",
-                padding: "1rem",
+                padding: "1.5rem",
                 border: "1px solid #1a1a1a",
               }}
             >
               {transcript ? (
-                <div style={{ color: "#cccccc", fontSize: "0.875rem", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
-                  {transcript}
+                <div style={{
+                  color: "#cccccc",
+                  fontSize: "0.875rem",
+                  lineHeight: "1.8",
+                  whiteSpace: "pre-wrap",
+                  letterSpacing: "0.02em"
+                }}>
+                  {formatTranscript(transcript)}
                 </div>
               ) : (
                 <div style={{ color: "#666666", textAlign: "center", padding: "2rem 0", fontSize: "0.875rem" }}>
@@ -440,7 +477,7 @@ const PlaygroundPage: React.FC = () => {
       {!videoId && !loading && (
         <div style={{ textAlign: "center", padding: "2rem 0" }}>
           <div style={{ color: "#666666", fontSize: "0.875rem" }}>
-            Insira uma URL do YouTube acima
+            Já se divertiu hoje? =D
           </div>
         </div>
       )}

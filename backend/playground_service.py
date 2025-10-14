@@ -38,7 +38,8 @@ class PlaygroundService:
         self.model = None
         if GEMINI_API_KEY:
             try:
-                self.model = genai.GenerativeModel("gemini-1.5-flash")
+                # Usar gemini-2.5-flash (modelo mais recente disponível)
+                self.model = genai.GenerativeModel("gemini-2.5-flash")
             except Exception as e:
                 print(f"Erro ao inicializar modelo Gemini: {e}")
 
@@ -90,41 +91,44 @@ class PlaygroundService:
             )
 
         try:
-            # Tentar obter transcrição em português primeiro
+            # Nova API (v1.2+): Usar fetch() diretamente
+            api = YouTubeTranscriptApi()
+
+            # Tentar buscar transcrição com linguagens preferenciais
             try:
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-
-                # Tentar português primeiro
-                try:
-                    transcript = transcript_list.find_transcript(["pt", "pt-BR"])
-                    language = "pt"
-                except Exception:
-                    # Se não houver em português, tentar inglês
-                    try:
-                        transcript = transcript_list.find_transcript(["en"])
-                        language = "en"
-                    except Exception:
-                        # Pegar o primeiro disponível
-                        transcript = transcript_list.find_generated_transcript(["pt", "pt-BR", "en"])
-                        language = transcript.language_code
-
-                transcript_data = transcript.fetch()
-
-            except Exception:
-                # Fallback: tentar obter qualquer transcrição disponível
-                transcript_data = YouTubeTranscriptApi.get_transcript(
-                    video_id, languages=["pt", "pt-BR", "en"]
+                transcript_data = api.fetch(
+                    video_id,
+                    languages=["pt", "pt-BR", "en"]
                 )
-                language = "pt"  # Assumir português como padrão
+                # Detectar idioma da primeira entrada
+                language = "pt"  # Padrão
+            except Exception as e:
+                # Tentar listar transcrições disponíveis
+                try:
+                    available = api.list(video_id)
+                    if not available:
+                        raise ValueError("Nenhuma transcrição disponível para este vídeo")
 
-            # Combinar todo o texto da transcrição
-            full_transcript = " ".join([entry["text"] for entry in transcript_data])
+                    # Pegar a primeira transcrição disponível
+                    first_lang = available[0] if available else None
+                    if not first_lang:
+                        raise ValueError("Nenhuma transcrição disponível")
+
+                    transcript_data = api.fetch(video_id, languages=[first_lang])
+                    language = first_lang
+                except Exception as e2:
+                    raise ValueError(
+                        f"Não foi possível obter transcrição. Erro: {e!s}"
+                    ) from e2
+
+            # Combinar todo o texto da transcrição (nova API usa atributos)
+            full_transcript = " ".join([entry.text for entry in transcript_data])
 
             # Calcular duração aproximada
             duration = None
             if transcript_data:
                 last_entry = transcript_data[-1]
-                duration = int(last_entry.get("start", 0) + last_entry.get("duration", 0))
+                duration = int(last_entry.start + last_entry.duration)
 
             return {
                 "video_id": video_id,

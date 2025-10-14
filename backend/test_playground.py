@@ -29,7 +29,7 @@ print(f"Testing with: {test_video}")
 
 try:
     result = playground_service.get_transcript(test_video)
-    print(f"Success!")
+    print("Success!")
     print(f"Video ID: {result['video_id']}")
     print(f"Language: {result['language']}")
     print(f"Duration: {result['duration']} seconds")
