@@ -119,3 +119,62 @@ class LeadData(BaseModel):
     recommended_solutions: list[str]
     qualification_score: float = Field(ge=0.0, le=1.0)
     created_at: datetime = Field(default_factory=datetime.now)
+
+
+# === SCHEMAS PARA PLAYGROUND DE TRANSCRIÇÃO YOUTUBE ===
+
+
+class TranscribeRequest(BaseModel):
+    """Schema para requisição de transcrição de vídeo do YouTube"""
+
+    video_url: str = Field(
+        ...,
+        description="URL completa do vídeo do YouTube",
+        examples=["https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+    )
+
+
+class TranscribeResponse(BaseModel):
+    """Schema para resposta de transcrição"""
+
+    video_id: str = Field(..., description="ID do vídeo do YouTube")
+    video_url: str = Field(..., description="URL do vídeo")
+    title: str | None = Field(None, description="Título do vídeo")
+    transcript: str = Field(..., description="Transcrição completa do vídeo")
+    language: str = Field(..., description="Idioma da transcrição")
+    duration: int | None = Field(None, description="Duração do vídeo em segundos")
+
+
+class SummarizeRequest(BaseModel):
+    """Schema para requisição de sumarização"""
+
+    transcript: str = Field(..., description="Transcrição a ser sumarizada")
+    context: str | None = Field(
+        None, description="Contexto ou palavras-chave para direcionar a sumarização"
+    )
+    keywords: list[str] | None = Field(
+        None, description="Lista de palavras-chave para destacar"
+    )
+
+
+class SummarySection(BaseModel):
+    """Schema para seção do resumo"""
+
+    title: str = Field(..., description="Título da seção")
+    content: str = Field(..., description="Conteúdo da seção")
+
+
+class SummarizeResponse(BaseModel):
+    """Schema para resposta de sumarização"""
+
+    summary: str = Field(..., description="Resumo geral do conteúdo")
+    key_points: list[str] = Field(..., description="Pontos principais extraídos")
+    keywords_found: list[str] | None = Field(
+        None, description="Palavras-chave encontradas no texto"
+    )
+    sections: list[SummarySection] | None = Field(
+        None, description="Seções temáticas do resumo"
+    )
+    confidence: float = Field(
+        ge=0.0, le=1.0, description="Confiança na qualidade da sumarização"
+    )

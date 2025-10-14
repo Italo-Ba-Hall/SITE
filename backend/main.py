@@ -19,6 +19,7 @@ from chat_manager import chat_manager
 from database import db_manager
 from llm_service import llm_service
 from notification_service import notification_service
+from playground_service import playground_service
 
 # Importar schemas específicos
 from schemas import (
@@ -31,6 +32,10 @@ from schemas import (
     LLMRequest,
     LLMResponse,
     MessageRole,
+    SummarizeRequest,
+    SummarizeResponse,
+    TranscribeRequest,
+    TranscribeResponse,
     UserProfile,
 )
 
@@ -942,6 +947,78 @@ async def test_database():
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Erro no teste de banco de dados: {e!s}"
+        ) from e
+
+
+# === ENDPOINTS DE PLAYGROUND ===
+
+
+@app.post("/playground/transcribe", response_model=TranscribeResponse)
+async def transcribe_youtube_video(request: TranscribeRequest):
+    """
+    Endpoint para obter transcrição de vídeo do YouTube
+
+    Args:
+        request: TranscribeRequest com video_url
+
+    Returns:
+        TranscribeResponse com transcrição e metadados
+    """
+    try:
+        # Obter transcrição
+        result = playground_service.get_transcript(request.video_url)
+
+        return TranscribeResponse(**result)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao processar transcrição: {str(e)}"
+        ) from e
+
+
+@app.post("/playground/summarize", response_model=SummarizeResponse)
+async def summarize_transcript(request: SummarizeRequest):
+    """
+    Endpoint para sumarizar transcrição usando IA
+
+    Args:
+        request: SummarizeRequest com transcript, context e keywords
+
+    Returns:
+        SummarizeResponse com resumo e análise
+    """
+    try:
+        # Validar tamanho da transcrição
+        if len(request.transcript) < 50:
+            raise HTTPException(
+                status_code=400,
+                detail="Transcrição muito curta. Mínimo de 50 caracteres.",
+            )
+
+        if len(request.transcript) > 100000:
+            raise HTTPException(
+                status_code=400,
+                detail="Transcrição muito longa. Máximo de 100.000 caracteres.",
+            )
+
+        # Gerar sumarização
+        result = playground_service.summarize_transcript(
+            transcript=request.transcript,
+            context=request.context,
+            keywords=request.keywords,
+        )
+
+        return SummarizeResponse(**result)
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao processar sumarização: {str(e)}"
         ) from e
 
 

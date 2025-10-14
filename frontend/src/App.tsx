@@ -10,6 +10,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // Lazy loading para componentes pesados
 const MainContent = lazy(() => import('./components/MainContent'));
 const AdminAccess = lazy(() => import('./components/AdminAccess'));
+const PlaygroundContainer = lazy(() => import('./components/playground/PlaygroundContainer'));
 
 function App() {
   const isAdminMode = useMemo(() => {
@@ -40,6 +41,7 @@ function App() {
             }>
               <Routes>
                 <Route path="/" element={isAdminMode ? <AdminAccess /> : <MainContent />} />
+                <Route path="/playground" element={<PlaygroundContainer />} />
               </Routes>
             </Suspense>
           </div>
