@@ -79,7 +79,7 @@ def catch_all(path):
             # Converter resposta ASGI para Flask
             status_code = response_data.get("status", 200)
             headers_list = response_data.get("headers", [])
-            
+
             # Converter headers para formato Flask (lista de tuplas)
             headers = []
             for header in headers_list:
@@ -90,7 +90,7 @@ def catch_all(path):
                     if isinstance(value, bytes):
                         value = value.decode('utf-8')
                     headers.append((key, value))
-            
+
             body = response_data.get("body", b"")
 
             # Criar resposta Flask

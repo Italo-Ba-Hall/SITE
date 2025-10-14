@@ -1,8 +1,8 @@
 # WSGI configuration for PythonAnywhere
 # Place this file in your PythonAnywhere web app configuration
 
-import sys
 import os
+import sys
 
 # Add your project directory to the Python path
 path = '/home/seu_usuario/mysite'  # Substitua 'seu_usuario' pelo seu username

@@ -52,10 +52,11 @@ class PlaygroundService:
         Returns:
             ID do vídeo ou None se não for possível extrair
         """
-        # Padrões de URL do YouTube
+        # Padrões de URL do YouTube (mais flexíveis)
         patterns = [
             r"(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})",
-            r"youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})",
+            r"youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})",
+            r"^([a-zA-Z0-9_-]{11})$",  # ID direto
         ]
 
         for pattern in patterns:
@@ -84,7 +85,8 @@ class PlaygroundService:
         video_id = self.extract_video_id(video_url)
         if not video_id:
             raise ValueError(
-                "URL inválida. Por favor, forneça uma URL válida do YouTube."
+                f"URL inválida: '{video_url}'. Por favor, forneça uma URL válida do YouTube "
+                "(ex: https://www.youtube.com/watch?v=VIDEO_ID ou https://youtu.be/VIDEO_ID)"
             )
 
         try:

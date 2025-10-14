@@ -59,9 +59,9 @@ def get_suggestions():
     try:
         data = request.get_json() or {}
         text = data.get('text', '').lower()
-        
+
         suggestions = []
-        
+
         # Lógica simples de sugestões
         if any(word in text for word in ["site", "website", "web", "desenvolvimento"]):
             suggestions.append({
@@ -70,25 +70,25 @@ def get_suggestions():
                 "description": "Criação de sites e aplicações web modernas",
                 "category": "development"
             })
-        
+
         if any(word in text for word in ["app", "aplicativo", "mobile"]):
             suggestions.append({
-                "id": "mobile-dev", 
+                "id": "mobile-dev",
                 "title": "Desenvolvimento Mobile",
                 "description": "Apps nativos e multiplataforma",
                 "category": "development"
             })
-        
+
         if not suggestions:
             suggestions.append({
                 "id": "consultation",
-                "title": "Consultoria Personalizada", 
+                "title": "Consultoria Personalizada",
                 "description": "Vamos conversar sobre seu projeto específico",
                 "category": "consultation"
             })
-        
+
         return jsonify(suggestions)
-        
+
     except Exception as e:
         return jsonify({
             "error": "Erro ao processar sugestões",
@@ -110,7 +110,7 @@ def get_content(suggestion_id):
             }
         },
         "mobile-dev": {
-            "id": "mobile-dev", 
+            "id": "mobile-dev",
             "title": "Aplicativos Mobile Nativos",
             "content": "Desenvolvimento de apps para iOS e Android com experiência nativa.",
             "details": {
@@ -121,7 +121,7 @@ def get_content(suggestion_id):
         },
         "consultation": {
             "id": "consultation",
-            "title": "Consultoria Tecnológica", 
+            "title": "Consultoria Tecnológica",
             "content": "Análise detalhada do seu projeto e recomendações técnicas personalizadas.",
             "details": {
                 "includes": ["Análise de Requisitos", "Arquitetura", "Tecnologias", "Timeline"],
@@ -130,7 +130,7 @@ def get_content(suggestion_id):
             }
         }
     }
-    
+
     if suggestion_id not in content_map:
         return jsonify({
             "id": "not-found",
@@ -138,7 +138,7 @@ def get_content(suggestion_id):
             "content": "Desculpe, não encontramos informações para esta sugestão.",
             "details": {}
         })
-    
+
     return jsonify(content_map[suggestion_id])
 
 # Capturar todas as outras rotas

@@ -974,7 +974,7 @@ async def transcribe_youtube_video(request: TranscribeRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao processar transcrição: {str(e)}"
+            status_code=500, detail=f"Erro ao processar transcrição: {e!s}"
         ) from e
 
 
@@ -1018,7 +1018,7 @@ async def summarize_transcript(request: SummarizeRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao processar sumarização: {str(e)}"
+            status_code=500, detail=f"Erro ao processar sumarização: {e!s}"
         ) from e
 
 
