@@ -350,11 +350,23 @@ const ChatModal: React.FC<ChatModalProps> = ({
             scrollbarColor: '#374151 #1f2937'
           }}
         >
-          {messages.length === 0 && !isLoading ? (
+          {messages.length === 0 && !isLoading && !error ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
               <p className="text-cyan-400 text-lg font-medium">Iniciando conversa...</p>
               <p className="text-gray-400 text-sm mt-2">Preparando o assistente para você</p>
+            </div>
+          ) : messages.length === 0 && !isLoading && error ? (
+            <div className="text-center py-12">
+              <div className="text-red-400 text-6xl mb-6">⚠️</div>
+              <p className="text-red-400 text-lg font-medium mb-4">Falha ao Conectar</p>
+              <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto">{error}</p>
+              <button
+                onClick={() => startChat(initialMessage)}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200"
+              >
+                🔄 Tentar Novamente
+              </button>
             </div>
           ) : (
             messages.map((message, index) => (

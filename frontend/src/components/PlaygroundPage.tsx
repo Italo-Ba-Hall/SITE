@@ -226,9 +226,14 @@ const PlaygroundPage: React.FC = () => {
                       autoplay: 0,
                       modestbranding: 1,
                       rel: 0,
+                      enablejsapi: 1,
+                      fs: 1,
                     },
                   }}
                   style={{ width: "100%", height: "100%" }}
+                  onError={(e) => {
+                    console.error('Erro no player do YouTube:', e);
+                  }}
                 />
               </div>
             </div>

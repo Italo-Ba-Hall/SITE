@@ -223,17 +223,15 @@ export const useChat = (): UseChatReturn => {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(`Erro ao iniciar chat: ${errorMessage}`);
+      
+      // Log do erro para debug
+      console.error('Erro ao iniciar chat:', err);
+      
+      // Definir erro mas NÃO adicionar mensagem de fallback ainda
+      // O usuário precisa ver o erro real para poder tentar novamente
+      setError(`Não foi possível conectar ao chat. ${errorMessage.includes('Failed to fetch') ? 'Verifique sua conexão.' : errorMessage}`);
       setIsSessionReady(false);
-      
-      // Fallback: adicionar mensagem de erro amigável
-      const fallbackMessage: ChatMessage = {
-        role: 'assistant',
-        content: 'Desculpe, estou com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?',
-        timestamp: new Date()
-      };
-      
-      setMessages([fallbackMessage]);
+      setMessages([]);
     } finally {
       setIsLoading(false);
     }

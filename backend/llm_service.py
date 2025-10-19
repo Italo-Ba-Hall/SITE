@@ -96,8 +96,9 @@ class LLMService:
             raise ValueError("GEMINI_API_KEY não está definida no ambiente")
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
-        self.max_tokens = 1500  # Aumentado para aproveitar modelo maior
+        
+        self.model_name = "gemini-2.5-flash"
+        self.max_tokens = 1500
         self.temperature = 0.25
 
         # Cache de respostas
@@ -514,9 +515,8 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
                 )
 
             # Construir contexto da conversa
-            conversation_context = self._build_conversation_context(
-                request.context.get("messages", [])
-            )
+            messages = (request.context or {}).get("messages", [])
+            conversation_context = self._build_conversation_context(messages)
 
             # Otimizar tamanho do prompt
             optimized_context = self._optimize_prompt_size(conversation_context)
@@ -554,20 +554,35 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
             if policy_instructions:
                 contextual_prompt = f"{contextual_prompt}\n\nPOLÍTICA ATUAL (OBRIGATÓRIA): {policy_instructions}"
 
-            # Substituir o prompt do sistema pelo contextual
-            optimized_context[0] = {"role": "system", "content": contextual_prompt}
+            # Criar modelo com system instruction contextual
+            model = genai.GenerativeModel(
+                self.model_name,
+                system_instruction=contextual_prompt
+            )
 
-            # Chamar Groq API
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=optimized_context,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                stream=False,
+            # Converter histórico para formato Gemini
+            history_parts = []
+            for msg in optimized_context[1:]:  # Pular system prompt (já está no model)
+                role = "user" if msg["role"] == "user" else "model"
+                history_parts.append({
+                    "role": role,
+                    "parts": [msg["content"]]
+                })
+
+            # Criar chat com histórico
+            chat = model.start_chat(history=history_parts)
+
+            # Enviar mensagem atual
+            gemini_response = chat.send_message(
+                request.message,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                )
             )
 
             # Extrair resposta
-            response_content = completion.choices[0].message.content
+            response_content = gemini_response.text
 
             # Extrair informações do usuário
             user_profile = self._extract_user_profile(request.message)
@@ -578,6 +593,11 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
             # Calcular confiança baseada na resposta
             confidence = 0.8  # Base inicial, pode ser melhorada
 
+            # Extrair tokens usados
+            tokens_used = None
+            if hasattr(gemini_response, 'usage_metadata'):
+                tokens_used = gemini_response.usage_metadata.total_token_count
+
             response = LLMResponse(
                 message=response_content,
                 session_id=request.session_id,
@@ -585,10 +605,8 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
                 intent_detected=intent,
                 confidence=confidence,
                 metadata={
-                    "model": self.model,
-                    "tokens_used": completion.usage.total_tokens
-                    if hasattr(completion, "usage")
-                    else None,
+                    "model": self.model_name,
+                    "tokens_used": tokens_used,
                     "timestamp": datetime.now().isoformat(),
                     "cached": False,
                     "cache_hit": False,
@@ -633,7 +651,7 @@ Responda de forma natural e estruturada, com 2-3 frases. Sempre aplique quebras 
     def get_stats(self) -> dict:
         """Retorna estatísticas gerais do LLM Service"""
         return {
-            "model": self.model,
+            "model": self.model_name,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
             "cache_stats": self.cache.get_stats(),
