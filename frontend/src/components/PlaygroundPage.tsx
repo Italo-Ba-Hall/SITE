@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import usePlayground from "../hooks/usePlayground";
-import LiteYouTubeEmbed from "./LiteYouTubeEmbed";
+import YouTube from "react-youtube";
 
 const PlaygroundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -217,12 +217,18 @@ const PlaygroundPage: React.FC = () => {
               }}
             >
               <div style={{ position: "absolute", inset: 0 }}>
-                <LiteYouTubeEmbed
+                <YouTube
                   videoId={videoId}
-                  title="Vídeo do YouTube"
-                  autoload={true}
-                  posterQuality="hqdefault"
-                  noCookie={false}
+                  opts={{
+                    width: "100%",
+                    height: "100%",
+                    playerVars: {
+                      autoplay: 0,
+                      modestbranding: 1,
+                      rel: 0,
+                    },
+                  }}
+                  style={{ width: "100%", height: "100%" }}
                 />
               </div>
             </div>

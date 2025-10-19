@@ -4,6 +4,19 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Suprimir warnings conhecidos do YouTube iframe que não afetam a funcionalidade
+const originalWarn = console.warn;
+console.warn = (...args: unknown[]) => {
+  const message = args[0]?.toString() || '';
+  
+  // Filtrar warnings do YouTube postMessage (são esperados devido a CORS)
+  if (message.includes('postMessage') && (message.includes('youtube.com') || message.includes('www-widgetapi'))) {
+    return;
+  }
+  
+  originalWarn.apply(console, args);
+};
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
