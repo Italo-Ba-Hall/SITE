@@ -98,35 +98,87 @@ class PlaygroundService:
             )
 
         try:
-            # Nova API (v1.2+): Usar fetch() diretamente
-            api = YouTubeTranscriptApi()
+            # Configurar cookies para evitar bloqueio do YouTube em ambientes cloud
+            # Isso simula uma requisição de navegador normal
+            proxies = None
+            cookies = None
 
-            # Tentar buscar transcrição com linguagens preferenciais
+            # Tentar com diferentes estratégias
+            transcript_data = None
+            language = "pt"
+            last_error = None
+
+            # Estratégia 1: Tentar com linguagens preferenciais
             try:
-                transcript_data = api.fetch(
-                    video_id,
-                    languages=["pt", "pt-BR", "en"]
-                )
-                # Detectar idioma da primeira entrada
-                language = "pt"  # Padrão
-            except Exception as e:
-                # Tentar listar transcrições disponíveis
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+
+                # Tentar pegar transcrição em português primeiro
                 try:
-                    available = api.list(video_id)
-                    if not available:
-                        raise ValueError("Nenhuma transcrição disponível para este vídeo")
+                    transcript = transcript_list.find_transcript(['pt', 'pt-BR'])
+                    transcript_data = transcript.fetch()
+                    language = transcript.language_code
+                except Exception:
+                    # Se não encontrar em português, pegar qualquer uma disponível
+                    try:
+                        # Pegar a primeira transcrição manual disponível
+                        available = [t for t in transcript_list if not t.is_generated]
+                        if not available:
+                            # Se não tiver manual, pegar qualquer uma
+                            available = list(transcript_list)
 
-                    # Pegar a primeira transcrição disponível
-                    first_lang = available[0] if available else None
-                    if not first_lang:
-                        raise ValueError("Nenhuma transcrição disponível")
+                        if available:
+                            transcript = available[0]
+                            transcript_data = transcript.fetch()
+                            language = transcript.language_code
+                    except Exception as e:
+                        last_error = e
 
-                    transcript_data = api.fetch(video_id, languages=[first_lang])
-                    language = first_lang
-                except Exception as e2:
-                    raise ValueError(
-                        f"Não foi possível obter transcrição. Erro: {e!s}"
-                    ) from e2
+            except Exception as e:
+                last_error = e
+
+            # Se falhou, tentar método legado com proxies
+            if not transcript_data:
+                try:
+                    api = YouTubeTranscriptApi()
+                    transcript_data = api.fetch(
+                        video_id,
+                        languages=["pt", "pt-BR", "en"],
+                        proxies=proxies,
+                        cookies=cookies
+                    )
+                except Exception as e:
+                    # Última tentativa: listar e pegar qualquer transcrição
+                    try:
+                        available = api.list(video_id)
+                        if not available:
+                            raise ValueError(
+                                f"Nenhuma transcrição disponível para este vídeo. "
+                                f"Erro original: {last_error or e}"
+                            )
+
+                        first_lang = available[0] if available else None
+                        if not first_lang:
+                            raise ValueError("Nenhuma transcrição disponível")
+
+                        transcript_data = api.fetch(
+                            video_id,
+                            languages=[first_lang],
+                            proxies=proxies,
+                            cookies=cookies
+                        )
+                        language = first_lang
+                    except Exception as e2:
+                        raise ValueError(
+                            f"Não foi possível obter transcrição. O YouTube pode estar bloqueando "
+                            f"requisições do servidor. Tente novamente mais tarde. "
+                            f"Erro: {last_error or e2}"
+                        ) from e2
+
+            if not transcript_data:
+                raise ValueError(
+                    "Não foi possível obter transcrição após múltiplas tentativas. "
+                    "O vídeo pode não ter legendas disponíveis."
+                )
 
             # Preservar timestamps e criar segments
             transcript_segments = []
