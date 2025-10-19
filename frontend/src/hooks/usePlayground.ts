@@ -1,6 +1,13 @@
 import { useState, useCallback } from 'react';
 import { API_BASE_URL } from '../config/performance';
 
+interface TranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
+  end: number;
+}
+
 interface TranscribeResponse {
   video_id: string;
   video_url: string;
@@ -8,6 +15,7 @@ interface TranscribeResponse {
   transcript: string;
   language: string;
   duration?: number | null;
+  segments: TranscriptSegment[];
 }
 
 interface SummarySection {
@@ -21,12 +29,14 @@ interface SummarizeResponse {
   keywords_found?: string[] | null;
   sections?: SummarySection[] | null;
   confidence: number;
+  was_truncated: boolean;
 }
 
 const usePlayground = () => {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoId, setVideoId] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
+  const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [summary, setSummary] = useState<SummarizeResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +49,7 @@ const usePlayground = () => {
     setLoading(true);
     setError(null);
     setSummary(null);
+    setSegments([]);
 
     try {
       const response = await fetch(`${API_BASE_URL}/playground/transcribe`, {
@@ -59,10 +70,12 @@ const usePlayground = () => {
       setVideoUrl(url);
       setVideoId(data.video_id);
       setTranscript(data.transcript);
+      setSegments(data.segments || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
       setVideoId(null);
       setTranscript(null);
+      setSegments([]);
     } finally {
       setLoading(false);
     }
@@ -108,16 +121,22 @@ const usePlayground = () => {
     [transcript]
   );
 
+  const resetSummary = useCallback(() => {
+    setSummary(null);
+  }, []);
+
   return {
     videoUrl,
     videoId,
     transcript,
+    segments,
     summary,
     loading,
     error,
     handleUrlSubmit,
     handleSummarize,
     clearError,
+    resetSummary,
   };
 };
 

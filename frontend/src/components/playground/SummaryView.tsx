@@ -12,6 +12,7 @@ interface Summary {
   keywords_found?: string[] | null;
   sections?: SummarySection[] | null;
   confidence: number;
+  was_truncated: boolean;
 }
 
 interface SummaryViewProps {
