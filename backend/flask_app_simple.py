@@ -40,7 +40,7 @@ def health_check():
 def start_chat():
     """Endpoint de teste para chat"""
     try:
-        data = request.get_json() or {}
+        _ = request.get_json() or {}  # Recebe dados mas não usa neste endpoint de teste
         return jsonify({
             "session_id": "test-session-123",
             "welcome_message": "Olá! Como posso ajudá-lo hoje?",

@@ -12,8 +12,8 @@ if path not in sys.path:
 # Set environment variables
 os.environ['ENVIRONMENT'] = 'production'
 
-# Import your FastAPI app
-from main import app
+# Import must be after path and environment setup for proper loading
+from main import app  # noqa: E402
 
 # WSGI application
 application = app

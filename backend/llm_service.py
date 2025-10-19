@@ -96,7 +96,7 @@ class LLMService:
             raise ValueError("GEMINI_API_KEY não está definida no ambiente")
 
         genai.configure(api_key=api_key)
-        
+
         self.model_name = "gemini-2.5-flash"
         self.max_tokens = 1500
         self.temperature = 0.25
