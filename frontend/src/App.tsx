@@ -11,6 +11,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 const MainContent = lazy(() => import("./components/MainContent"));
 const AdminAccess = lazy(() => import("./components/AdminAccess"));
 const PlaygroundPage = lazy(() => import("./components/PlaygroundPage"));
+const Navbar = lazy(() => import("./components/Navbar"));
 
 function App() {
   const isAdminMode = useMemo(() => {
@@ -32,6 +33,7 @@ function App() {
               <>
                 <BackgroundCanvas />
                 <AnimationIntro />
+                <Navbar />
               </>
             )}
             <Suspense
