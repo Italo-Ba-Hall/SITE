@@ -5,7 +5,6 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { Link } from "react-router-dom";
 import { useChat } from "../hooks/useChat";
 
 const MainContent: React.FC = React.memo(() => {
@@ -170,16 +169,6 @@ const MainContent: React.FC = React.memo(() => {
     <div id="mainContent" className={`content ${isVisible ? "visible" : ""}`}>
       <div className="logo">/-HALL-DEV</div>
       <div className="subtitle">Development &amp; Innovation</div>
-
-      {/* Playground Link */}
-      <div className="flex justify-center mb-6">
-        <Link
-          to="/playground"
-          className="text-cyan-400 hover:text-cyan-300 text-sm underline transition-colors"
-        >
-          YouTube Playground →
-        </Link>
-      </div>
 
       <div id="interfaceContainer">
         <div className="prompt-container" onClick={handlePromptClick}>
