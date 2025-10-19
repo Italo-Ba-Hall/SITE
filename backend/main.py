@@ -1023,6 +1023,37 @@ async def summarize_transcript(request: SummarizeRequest):
         ) from e
 
 
+@app.post("/playground/analyze-keywords")
+async def analyze_keywords(request: dict):
+    """
+    Endpoint para análise e sugestão de palavras-chave
+
+    Corpo da requisição:
+    {
+        "transcript": "texto da transcrição",
+        "keywords": ["palavra1", "palavra2"],  // opcional
+        "language": "pt"  // opcional
+    }
+    """
+    try:
+        transcript = request.get("transcript", "")
+        keywords = request.get("keywords", [])
+        language = request.get("language", "pt")
+
+        if not transcript:
+            raise HTTPException(status_code=400, detail="Transcrição não fornecida")
+
+        result = playground_service.validate_keywords(keywords, transcript, language)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao analisar palavras-chave: {e!s}"
+        ) from e
+
+
 # === EXECUÇÃO ===
 
 if __name__ == "__main__":

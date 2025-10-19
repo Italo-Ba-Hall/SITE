@@ -1,8 +1,8 @@
 """
 Teste do backend em produção após deploy
 """
+
 import requests
-import json
 
 API_URL = "https://site-production-1e79.up.railway.app"
 
@@ -22,14 +22,14 @@ try:
         },
         timeout=15
     )
-    
+
     print(f"Status: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
         session_id = data.get("session_id")
-        print(f"✓ Chat iniciado com sucesso!")
+        print("✓ Chat iniciado com sucesso!")
         print(f"  Session ID: {session_id}")
-        
+
         # Teste 2: Enviar mensagem
         print("\n[2] Testando /chat/message...")
         msg_response = requests.post(
@@ -45,11 +45,11 @@ try:
             },
             timeout=30
         )
-        
+
         print(f"Status: {msg_response.status_code}")
         if msg_response.status_code == 200:
             msg_data = msg_response.json()
-            
+
             # Verificar se é mensagem de fallback ou resposta real
             if msg_data.get("metadata", {}).get("fallback"):
                 print("❌ AINDA ESTÁ RETORNANDO FALLBACK!")
@@ -57,7 +57,7 @@ try:
                 print("\n⏳ Deploy pode ainda estar em andamento...")
             else:
                 print("✅ CHAT FUNCIONANDO PERFEITAMENTE!")
-                print(f"\nResposta do LLM:")
+                print("\nResposta do LLM:")
                 print(f"  {msg_data.get('message')[:200]}...")
                 print(f"\n  Modelo: {msg_data.get('metadata', {}).get('model')}")
                 print(f"  Tokens: {msg_data.get('metadata', {}).get('tokens_used')}")
@@ -68,7 +68,7 @@ try:
     else:
         print(f"❌ Erro no /chat/start: {response.status_code}")
         print(response.text)
-        
+
 except Exception as e:
     print(f"❌ Erro: {e}")
 

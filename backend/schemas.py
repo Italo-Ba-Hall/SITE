@@ -134,6 +134,30 @@ class TranscribeRequest(BaseModel):
     )
 
 
+class TranscriptSegment(BaseModel):
+    """Schema para segmento individual da transcrição"""
+
+    text: str = Field(..., description="Texto do segmento")
+    start: float = Field(..., description="Tempo de início em segundos")
+    duration: float = Field(..., description="Duração em segundos")
+    end: float = Field(..., description="Tempo de fim em segundos (start + duration)")
+
+
+class KeywordAnalysis(BaseModel):
+    """Schema para análise de palavra-chave individual"""
+
+    keyword: str = Field(..., description="Palavra-chave analisada")
+    count: int = Field(..., description="Número de ocorrências na transcrição")
+
+
+class KeywordValidationResponse(BaseModel):
+    """Schema para resposta de validação de palavras-chave"""
+
+    found: list[KeywordAnalysis] = Field(..., description="Keywords encontradas com contagem")
+    not_found: list[str] = Field(..., description="Keywords não encontradas")
+    suggestions: list[str] = Field(..., description="Sugestões automáticas de keywords")
+
+
 class TranscribeResponse(BaseModel):
     """Schema para resposta de transcrição"""
 
@@ -143,6 +167,7 @@ class TranscribeResponse(BaseModel):
     transcript: str = Field(..., description="Transcrição completa do vídeo")
     language: str = Field(..., description="Idioma da transcrição")
     duration: int | None = Field(None, description="Duração do vídeo em segundos")
+    segments: list[TranscriptSegment] = Field(..., description="Segmentos da transcrição com timestamps")
 
 
 class SummarizeRequest(BaseModel):
@@ -178,3 +203,4 @@ class SummarizeResponse(BaseModel):
     confidence: float = Field(
         ge=0.0, le=1.0, description="Confiança na qualidade da sumarização"
     )
+    was_truncated: bool = Field(False, description="Indica se a transcrição foi cortada")

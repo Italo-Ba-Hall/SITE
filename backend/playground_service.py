@@ -8,8 +8,10 @@ Funcionalidades:
 - Extração de palavras-chave e pontos principais
 """
 
+import hashlib
 import os
 import re
+import time
 from typing import Any
 
 import google.generativeai as genai
@@ -42,6 +44,11 @@ class PlaygroundService:
                 self.model = genai.GenerativeModel("gemini-2.5-flash")
             except Exception as e:
                 print(f"Erro ao inicializar modelo Gemini: {e}")
+
+        # Cache em memória para sumarizações
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._cache_ttl: dict[str, float] = {}
+        self.CACHE_TTL = 3600  # 1 hora em segundos
 
     def extract_video_id(self, url: str) -> str | None:
         """
@@ -121,7 +128,17 @@ class PlaygroundService:
                         f"Não foi possível obter transcrição. Erro: {e!s}"
                     ) from e2
 
-            # Combinar todo o texto da transcrição (nova API usa atributos)
+            # Preservar timestamps e criar segments
+            transcript_segments = []
+            for entry in transcript_data:
+                transcript_segments.append({
+                    "text": entry.text,
+                    "start": entry.start,
+                    "duration": entry.duration,
+                    "end": entry.start + entry.duration
+                })
+
+            # Manter compatibilidade: transcrição completa como string
             full_transcript = " ".join([entry.text for entry in transcript_data])
 
             # Calcular duração aproximada
@@ -137,6 +154,7 @@ class PlaygroundService:
                 "language": language,
                 "duration": duration,
                 "title": None,  # YouTube Transcript API não retorna título
+                "segments": transcript_segments,
             }
 
         except TranscriptsDisabled as exc:
@@ -154,6 +172,30 @@ class PlaygroundService:
             ) from exc
         except Exception as e:
             raise ValueError(f"Erro ao obter transcrição: {e!s}") from e
+
+    def _get_cache_key(self, transcript: str, context: str | None = None, keywords: list[str] | None = None) -> str:
+        """Gera chave única para cache baseada no conteúdo"""
+        # Usar primeiros 500 chars para gerar hash (suficiente para identificar transcrição)
+        content = f"{transcript[:500]}_{context}_{','.join(keywords or [])}"
+        return hashlib.sha256(content.encode()).hexdigest()
+
+    def _is_cache_valid(self, key: str) -> bool:
+        """Verifica se cache ainda é válido"""
+        if key not in self._cache_ttl:
+            return False
+        elapsed = time.time() - self._cache_ttl[key]
+        return elapsed < self.CACHE_TTL
+
+    def _clear_expired_cache(self) -> None:
+        """Remove entradas expiradas do cache"""
+        current_time = time.time()
+        expired_keys = [
+            key for key, ttl in self._cache_ttl.items()
+            if current_time - ttl >= self.CACHE_TTL
+        ]
+        for key in expired_keys:
+            self._cache.pop(key, None)
+            self._cache_ttl.pop(key, None)
 
     def summarize_transcript(
         self, transcript: str, context: str | None = None, keywords: list[str] | None = None
@@ -173,6 +215,17 @@ class PlaygroundService:
             raise ValueError(
                 "Serviço de sumarização não disponível. Verifique a configuração da API Gemini."
             )
+
+        # Limpar cache expirado periodicamente
+        self._clear_expired_cache()
+
+        # Verificar cache primeiro
+        cache_key = self._get_cache_key(transcript, context, keywords)
+        if self._is_cache_valid(cache_key):
+            print(f"Cache HIT para sumarização (key: {cache_key[:8]}...)")
+            return self._cache[cache_key]
+
+        print(f"Cache MISS para sumarização (key: {cache_key[:8]}...)")
 
         try:
             # Construir prompt para o Gemini
@@ -197,16 +250,60 @@ class PlaygroundService:
                     kw for kw in keywords if kw.lower() in transcript.lower()
                 ]
 
-            return {
+            # Verificar se transcrição foi truncada
+            _, was_truncated = self._chunk_transcript_intelligently(transcript)
+
+            # Criar resultado
+            result = {
                 "summary": summary_text,
                 "key_points": key_points,
                 "keywords_found": keywords_found,
                 "sections": sections,
                 "confidence": 0.85,  # Confiança estimada
+                "was_truncated": was_truncated,
             }
+
+            # Salvar no cache
+            self._cache[cache_key] = result
+            self._cache_ttl[cache_key] = time.time()
+            print(f"Resultado salvo em cache (key: {cache_key[:8]}...)")
+
+            return result
 
         except Exception as e:
             raise ValueError(f"Erro ao gerar sumarização: {e!s}") from e
+
+    def _chunk_transcript_intelligently(self, transcript: str, max_chunk_size: int = 6000) -> tuple[str, bool]:
+        """
+        Divide transcrição em segmentos lógicos
+
+        Returns:
+            Tupla (texto_processado, foi_cortado)
+        """
+        if len(transcript) <= max_chunk_size:
+            return transcript, False
+
+        # Dividir por sentenças completas (melhor que cortar no meio)
+        sentences = transcript.split('. ')
+        chunks = []
+        current_chunk = ""
+
+        for sentence in sentences:
+            test_chunk = current_chunk + sentence + ". "
+            if len(test_chunk) > max_chunk_size and current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = sentence + ". "
+            else:
+                current_chunk = test_chunk
+
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+
+        # Retornar primeiros 3 chunks (mais relevantes geralmente no início)
+        processed = " ".join(chunks[:3])
+        was_truncated = len(chunks) > 3 or len(transcript) > max_chunk_size
+
+        return processed, was_truncated
 
     def _build_summary_prompt(
         self, transcript: str, context: str | None, keywords: list[str] | None
@@ -222,32 +319,42 @@ class PlaygroundService:
         Returns:
             Prompt formatado
         """
-        prompt = """Você é um assistente especializado em análise de conteúdo e sumarização.
+        prompt = """Você é um especialista em sumarização concisa e eficiente.
 
-Analise a seguinte transcrição de vídeo do YouTube e forneça:
+INSTRUÇÕES CRÍTICAS:
+- Resumo: máximo 200 palavras
+- Pontos principais: máximo 5 itens
+- Linguagem direta e objetiva
+- Zero redundâncias
 
-1. **RESUMO GERAL**: Um resumo conciso (2-3 parágrafos) do conteúdo principal
-2. **PONTOS PRINCIPAIS**: Liste os 5-7 pontos mais importantes (formato bullet points)
-3. **SEÇÕES TEMÁTICAS**: Se aplicável, divida o conteúdo em seções temáticas
+FORMATO OBRIGATÓRIO:
+**RESUMO:** [texto de no máximo 200 palavras]
+
+**PONTOS PRINCIPAIS:**
+• [ponto 1]
+• [ponto 2]
+• [ponto 3]
+• [ponto 4]
+• [ponto 5]
 
 """
 
         if context:
-            prompt += f"\n**CONTEXTO FORNECIDO**: {context}\n"
+            prompt += f"**CONTEXTO FORNECIDO:** {context}\n"
+            prompt += "Analise APENAS aspectos relacionados a este contexto.\n\n"
 
         if keywords:
-            prompt += f"\n**PALAVRAS-CHAVE PARA DESTACAR**: {', '.join(keywords)}\n"
+            prompt += f"**PALAVRAS-CHAVE PARA DESTACAR:** {', '.join(keywords)}\n"
+            prompt += "Identifique e destaque onde essas palavras aparecem.\n\n"
 
-        prompt += f"""
----
+        # Chunking inteligente (remove limite fixo [:8000])
+        transcript_processed, was_truncated = self._chunk_transcript_intelligently(transcript)
 
-**TRANSCRIÇÃO**:
-{transcript[:8000]}  # Limitar tamanho para evitar exceder limite de tokens
+        if was_truncated:
+            prompt += "⚠️ **NOTA:** Transcrição muito longa. Analisando primeiros segmentos.\n\n"
 
----
-
-Por favor, forneça uma análise estruturada e clara do conteúdo.
-"""
+        prompt += f"**TRANSCRIÇÃO:**\n{transcript_processed}\n\n"
+        prompt += "---\nRESPONDA APENAS NO FORMATO SOLICITADO. SEJA CONCISO."
 
         return prompt
 
@@ -305,6 +412,98 @@ Por favor, forneça uma análise estruturada e clara do conteúdo.
             key_points = sentences[:7]  # Limitar a 7 pontos
 
         return key_points[:10]  # Limitar a 10 pontos principais
+
+    def _get_stop_words(self, language: str) -> set[str]:
+        """Retorna stop words baseado no idioma"""
+        stop_words_pt = {
+            'o', 'a', 'os', 'as', 'um', 'uma', 'de', 'da', 'do', 'das', 'dos',
+            'em', 'na', 'no', 'nas', 'nos', 'para', 'por', 'com', 'sem',
+            'que', 'quando', 'onde', 'como', 'porque', 'então', 'mas', 'e', 'ou',
+            'ele', 'ela', 'isso', 'este', 'esse', 'aquele', 'seu', 'sua'
+        }
+
+        stop_words_en = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+            'of', 'with', 'by', 'from', 'up', 'about', 'into', 'through', 'during',
+            'before', 'after', 'above', 'below', 'between', 'under', 'again', 'further',
+            'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all',
+            'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no',
+            'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
+            'can', 'will', 'just', 'should', 'now', 'it', 'this', 'that', 'these',
+            'those', 'i', 'you', 'he', 'she', 'we', 'they', 'what', 'which', 'who'
+        }
+
+        # Detectar idioma
+        if language.startswith('pt'):
+            return stop_words_pt
+        elif language.startswith('en'):
+            return stop_words_en
+        else:
+            # Fallback: união de ambos
+            return stop_words_pt | stop_words_en
+
+    def extract_keyword_suggestions(self, transcript: str, language: str = "pt") -> list[str]:
+        """
+        Extrai sugestões de palavras-chave da transcrição
+
+        Args:
+            transcript: Texto da transcrição
+            language: Idioma da transcrição (para stop words corretas)
+
+        Returns:
+            Lista das 10 palavras mais relevantes
+        """
+        # Nota: 're' já está importado no topo do arquivo (linha 13)
+
+        # Obter stop words corretas para o idioma
+        stop_words = self._get_stop_words(language)
+
+        # Extrair palavras significativas (3+ caracteres, não stop words)
+        words = re.findall(r'\b[a-zA-ZÀ-ÿ]{3,}\b', transcript.lower())
+
+        # Contar frequência
+        word_count: dict[str, int] = {}
+        for word in words:
+            if word not in stop_words:
+                word_count[word] = word_count.get(word, 0) + 1
+
+        # Retornar top 10 palavras mais frequentes (mínimo 2 ocorrências)
+        sorted_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)
+        return [word for word, count in sorted_words[:10] if count >= 2]
+
+    def validate_keywords(self, keywords: list[str], transcript: str, language: str = "pt") -> dict[str, Any]:
+        """
+        Valida e analisa palavras-chave
+
+        Args:
+            keywords: Lista de palavras-chave fornecidas
+            transcript: Texto da transcrição
+            language: Idioma da transcrição
+
+        Returns:
+            Dicionário com análise das palavras-chave (inclui contagem de ocorrências)
+        """
+        found_keywords = []
+        not_found_keywords = []
+
+        transcript_lower = transcript.lower()
+
+        for keyword in keywords:
+            if keyword.lower() in transcript_lower:
+                # Contar ocorrências
+                count = transcript_lower.count(keyword.lower())
+                found_keywords.append({
+                    "keyword": keyword,
+                    "count": count
+                })
+            else:
+                not_found_keywords.append(keyword)
+
+        return {
+            "found": found_keywords,  # list[dict] com keyword e count
+            "not_found": not_found_keywords,
+            "suggestions": self.extract_keyword_suggestions(transcript, language)
+        }
 
 
 # Instância global do serviço

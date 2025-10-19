@@ -23,7 +23,7 @@ backend/dist/
 *.swp
 *.swo
 .cursor/
-
+old_files/
 # OS specific
 .DS_Store
 Thumbs.db
