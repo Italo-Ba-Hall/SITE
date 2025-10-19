@@ -5,13 +5,13 @@ import AnimationIntro from "./components/AnimationIntro";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
 import LoadingSpinner from "./components/LoadingSpinner";
+import Navbar from "./components/Navbar";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // Lazy loading para componentes pesados
 const MainContent = lazy(() => import("./components/MainContent"));
 const AdminAccess = lazy(() => import("./components/AdminAccess"));
 const PlaygroundPage = lazy(() => import("./components/PlaygroundPage"));
-const Navbar = lazy(() => import("./components/Navbar"));
 
 function App() {
   const isAdminMode = useMemo(() => {

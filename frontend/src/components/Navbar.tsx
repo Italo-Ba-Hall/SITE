@@ -1,32 +1,108 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 const Navbar: React.FC = () => {
+  const [isHovered, setIsHovered] = useState(false);
+  const location = useLocation();
+
+  // Não renderiza o Navbar na página do Playground
+  if (location.pathname === '/playground') {
+    return null;
+  }
+
   return (
-    <nav className="navbar absolute top-0 left-0 right-0 z-50 p-6">
-      <div className="flex justify-end">
-        {/* YouTube Playground Button */}
+    <nav 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 9999,
+        padding: '1.5rem',
+        pointerEvents: 'none'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'center', pointerEvents: 'auto' }}>
+        {/* YouTube Playground Button - Terminal Style */}
         <Link
           to="/playground"
-          className="group flex items-center gap-2 px-5 py-2.5 bg-[#FF0000] hover:bg-[#CC0000] rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.75rem 1.5rem',
+            background: isHovered 
+              ? 'rgba(6, 182, 212, 0.1)' 
+              : 'transparent',
+            border: isHovered 
+              ? '1px solid rgba(6, 182, 212, 0.5)' 
+              : '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '0.5rem',
+            textDecoration: 'none',
+            fontFamily: '"Courier New", Courier, monospace',
+            fontSize: '0.95rem',
+            fontWeight: 500,
+            letterSpacing: '0.05em',
+            transition: 'all 0.3s ease',
+            boxShadow: isHovered 
+              ? '0 0 20px rgba(6, 182, 212, 0.3)' 
+              : 'none',
+            backdropFilter: isHovered ? 'blur(10px)' : 'none'
+          }}
         >
-          {/* YouTube Icon SVG */}
+          {/* YouTube Icon - Simple & Guaranteed */}
           <svg
-            className="w-6 h-6 fill-white"
-            viewBox="0 0 24 24"
+            width="32"
+            height="24"
+            viewBox="0 0 32 24"
             xmlns="http://www.w3.org/2000/svg"
+            style={{
+              flexShrink: 0,
+              filter: isHovered 
+                ? 'drop-shadow(0 0 10px rgba(255, 0, 0, 0.8))' 
+                : 'drop-shadow(0 0 5px rgba(255, 0, 0, 0.4))',
+              transition: 'all 0.3s ease'
+            }}
           >
-            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            {/* Red rounded rectangle */}
+            <rect x="0" y="0" width="32" height="24" rx="3" fill="#FF0000"/>
+            {/* White play triangle */}
+            <polygon points="12,8 12,16 20,12" fill="#FFFFFF"/>
           </svg>
-          
-          {/* Text */}
-          <span className="text-white font-semibold text-sm tracking-wide">
-            Playground
+
+          {/* Terminal Text */}
+          <span style={{
+            color: isHovered ? '#06b6d4' : '#ffffff',
+            transition: 'color 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            whiteSpace: 'nowrap'
+          }}>
+            [ &gt; youtube_playground ]
+            {isHovered && (
+              <span style={{
+                marginLeft: '0.25rem',
+                animation: 'blink 1s infinite',
+                color: '#06b6d4'
+              }}>
+                _
+              </span>
+            )}
           </span>
         </Link>
+
+        {/* Keyframe Animation for Cursor */}
+        <style>{`
+          @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+          }
+        `}</style>
       </div>
     </nav>
   );
 };
 
-export default Navbar; 
+export default Navbar;
