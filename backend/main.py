@@ -20,8 +20,6 @@ from database import db_manager
 from llm_service import llm_service
 from notification_service import notification_service
 from playground_service import playground_service
-
-# Importar schemas específicos
 from schemas import (
     BaseModel,
     ChatEndRequest,
@@ -38,6 +36,9 @@ from schemas import (
     TranscribeResponse,
     UserProfile,
 )
+
+# Carregar variáveis de ambiente após todas as importações
+load_dotenv()
 
 # Inicializar FastAPI
 app = FastAPI(
