@@ -98,85 +98,47 @@ class PlaygroundService:
             )
 
         try:
-            # Configurar cookies para evitar bloqueio do YouTube em ambientes cloud
-            # Isso simula uma requisição de navegador normal
-            proxies = None
-            cookies = None
+            # Criar instância da API
+            api = YouTubeTranscriptApi()
 
-            # Tentar com diferentes estratégias
-            transcript_data = None
-            language = "pt"
-            last_error = None
+            # Obter lista de transcrições disponíveis para o vídeo
+            transcript_list = api.list(video_id)
 
-            # Estratégia 1: Tentar com linguagens preferenciais
-            try:
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            # Coletar todas as transcrições disponíveis
+            # Estratégia: Priorizar transcrições manuais sobre automáticas
+            manual_transcripts = []
+            generated_transcripts = []
 
-                # Tentar pegar transcrição em português primeiro
-                try:
-                    transcript = transcript_list.find_transcript(['pt', 'pt-BR'])
-                    transcript_data = transcript.fetch()
-                    language = transcript.language_code
-                except Exception:
-                    # Se não encontrar em português, pegar qualquer uma disponível
-                    try:
-                        # Pegar a primeira transcrição manual disponível
-                        available = [t for t in transcript_list if not t.is_generated]
-                        if not available:
-                            # Se não tiver manual, pegar qualquer uma
-                            available = list(transcript_list)
+            # Iterar sobre o TranscriptList para separar manuais e automáticas
+            for transcript in transcript_list:
+                if transcript.is_generated:
+                    generated_transcripts.append(transcript)
+                else:
+                    manual_transcripts.append(transcript)
 
-                        if available:
-                            transcript = available[0]
-                            transcript_data = transcript.fetch()
-                            language = transcript.language_code
-                    except Exception as e:
-                        last_error = e
+            # Escolher a primeira transcrição disponível
+            # Prioridade: Manual > Automática (idioma original)
+            selected_transcript = None
 
-            except Exception as e:
-                last_error = e
+            if manual_transcripts:
+                selected_transcript = manual_transcripts[0]
+            elif generated_transcripts:
+                selected_transcript = generated_transcripts[0]
+            else:
+                raise NoTranscriptFound(
+                    video_id=video_id,
+                    requested_language_codes=[],
+                    transcript_data=None
+                )
 
-            # Se falhou, tentar método legado com proxies
-            if not transcript_data:
-                try:
-                    api = YouTubeTranscriptApi()
-                    transcript_data = api.fetch(
-                        video_id,
-                        languages=["pt", "pt-BR", "en"],
-                        proxies=proxies,
-                        cookies=cookies
-                    )
-                except Exception as e:
-                    # Última tentativa: listar e pegar qualquer transcrição
-                    try:
-                        available = api.list(video_id)
-                        if not available:
-                            raise ValueError(
-                                f"Nenhuma transcrição disponível para este vídeo. "
-                                f"Erro original: {last_error or e}"
-                            )
+            # Buscar os dados da transcrição selecionada
+            # fetch() retorna um FetchedTranscript iterável
+            transcript_data = selected_transcript.fetch()
+            language = selected_transcript.language_code
 
-                        first_lang = available[0] if available else None
-                        if not first_lang:
-                            raise ValueError("Nenhuma transcrição disponível")
-
-                        transcript_data = api.fetch(
-                            video_id,
-                            languages=[first_lang],
-                            proxies=proxies,
-                            cookies=cookies
-                        )
-                        language = first_lang
-                    except Exception as e2:
-                        raise ValueError(
-                            f"Não foi possível obter transcrição. O YouTube pode estar bloqueando "
-                            f"requisições do servidor. Tente novamente mais tarde. "
-                            f"Erro: {last_error or e2}"
-                        ) from e2
-
-            if not transcript_data:
+            if not transcript_data or len(transcript_data) == 0:
                 raise ValueError(
-                    "Não foi possível obter transcrição após múltiplas tentativas. "
+                    "Não foi possível obter transcrição. "
                     "O vídeo pode não ter legendas disponíveis."
                 )
 
@@ -325,7 +287,7 @@ class PlaygroundService:
         except Exception as e:
             raise ValueError(f"Erro ao gerar sumarização: {e!s}") from e
 
-    def _chunk_transcript_intelligently(self, transcript: str, max_chunk_size: int = 6000) -> tuple[str, bool]:
+    def _chunk_transcript_intelligently(self, transcript: str, max_chunk_size: int = 15000) -> tuple[str, bool]:
         """
         Divide transcrição em segmentos lógicos
 

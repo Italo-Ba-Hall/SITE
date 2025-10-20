@@ -5,7 +5,9 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 // Suprimir warnings conhecidos do YouTube iframe que não afetam a funcionalidade
+// eslint-disable-next-line no-console
 const originalWarn = console.warn;
+// eslint-disable-next-line no-console
 console.warn = (...args: unknown[]) => {
   const message = args[0]?.toString() || '';
   

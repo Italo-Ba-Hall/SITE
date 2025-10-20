@@ -120,9 +120,10 @@ export const measurePerformance = (name: string, fn: () => void): void => {
   const start = performance.now();
   fn();
   const end = performance.now();
-  
+
   if (process.env.NODE_ENV === 'development') {
-    console.log(`${name} took ${end - start}ms`);
+    // eslint-disable-next-line no-console
+    console.log(`${name} took ${end - start}ms`); // Performance tracking apenas em development
   }
 };
 
@@ -132,7 +133,8 @@ export const trackError = (error: Error, context?: Record<string, unknown>): voi
     // TODO: Implement error tracking service
     // Example: Sentry.captureException(error, { extra: context });
   } else {
-    console.error('Error tracked:', error, context);
+    // eslint-disable-next-line no-console
+    console.error('Error tracked:', error, context); // Error tracking apenas em development
   }
 };
 

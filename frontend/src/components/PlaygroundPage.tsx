@@ -4,6 +4,7 @@ import usePlayground from "../hooks/usePlayground";
 import YouTube from "react-youtube";
 import TranscriptionView from "./playground/TranscriptionView";
 import SummaryView from "./playground/SummaryView";
+import UserRegistrationModal from "./UserRegistrationModal";
 
 const PlaygroundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,15 +15,21 @@ const PlaygroundPage: React.FC = () => {
     summary,
     loading,
     error,
+    showRegistrationModal,
     handleUrlSubmit,
     handleSummarize,
     clearError,
-    resetSummary,
+    registerUser,
+    updateExport,
+    setShowRegistrationModal,
   } = usePlayground();
 
   const [urlInput, setUrlInput] = useState("");
   const playerRef = useRef<{ seekTo: (seconds: number, allowSeekAhead: boolean) => void } | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [videoSize, setVideoSize] = useState<"normal" | "large" | "fullwidth">("normal");
+  const [viewMode, setViewMode] = useState<"transcript" | "summary" | "split">("transcript");
+  const [splitRatio, setSplitRatio] = useState(50); // Percentual do lado esquerdo
 
   // Gerenciar responsividade
   useEffect(() => {
@@ -30,6 +37,11 @@ const PlaygroundPage: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Resetar viewMode quando videoId mudar (nova transcrição)
+  useEffect(() => {
+    setViewMode("transcript");
+  }, [videoId]);
 
   const handleTranscribe = () => {
     if (urlInput.trim()) {
@@ -41,16 +53,96 @@ const PlaygroundPage: React.FC = () => {
     try {
       if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
         playerRef.current.seekTo(timestamp, true);
-      } else {
-        console.warn('Player não está pronto para navegação');
       }
+      // Warning removido: silenciar quando player não está pronto
     } catch (error) {
-      console.error('Erro ao navegar no vídeo:', error);
+      // eslint-disable-next-line no-console
+      console.error('Erro ao navegar no vídeo:', error); // Log crítico para debug de falhas no player
+    }
+  };
+
+  const handleExport = (format: 'txt' | 'pdf') => {
+    if (format === 'txt') {
+      // Criar TXT formatado
+      let content = '';
+      
+      if (summary) {
+        // Exportar Resumo
+        content += '═══════════════════════════════════════════════════════════\n';
+        content += '                    RESUMO INTELIGENTE\n';
+        content += '═══════════════════════════════════════════════════════════\n\n';
+        
+        if (videoId) {
+          content += `📹 Vídeo: https://www.youtube.com/watch?v=${videoId}\n`;
+        }
+        content += `✓ Confiança: ${(summary.confidence * 100).toFixed(0)}%\n\n`;
+        
+        content += '─── RESUMO GERAL ───\n\n';
+        content += summary.summary + '\n\n';
+        
+        if (summary.key_points && summary.key_points.length > 0) {
+          content += '─── PONTOS PRINCIPAIS ───\n\n';
+          summary.key_points.forEach((point, index) => {
+            content += `  ${index + 1}. ${point}\n`;
+          });
+          content += '\n';
+        }
+        
+        if (summary.keywords_found && summary.keywords_found.length > 0) {
+          content += '─── PALAVRAS-CHAVE ENCONTRADAS ───\n\n';
+          content += summary.keywords_found.join(', ') + '\n\n';
+        }
+        
+        if (summary.sections && summary.sections.length > 0) {
+          content += '─── SEÇÕES TEMÁTICAS ───\n\n';
+          summary.sections.forEach((section) => {
+            content += `▸ ${section.title.toUpperCase()}\n`;
+            content += section.content + '\n\n';
+          });
+        }
+      } else if (transcript) {
+        // Exportar Transcrição
+        content += '═══════════════════════════════════════════════════════════\n';
+        content += '                     TRANSCRIÇÃO\n';
+        content += '═══════════════════════════════════════════════════════════\n\n';
+        
+        if (videoId) {
+          content += `📹 Vídeo: https://www.youtube.com/watch?v=${videoId}\n\n`;
+        }
+        
+        if (segments && segments.length > 0) {
+          segments.forEach((segment) => {
+            const mins = Math.floor(segment.start / 60);
+            const secs = Math.floor(segment.start % 60);
+            const timestamp = `${mins}:${secs.toString().padStart(2, '0')}`;
+            content += `[${timestamp}] ${segment.text}\n\n`;
+          });
+        } else {
+          content += transcript;
+        }
+      }
+      
+      // Download do arquivo
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = summary 
+        ? `resumo_${videoId || 'video'}_${Date.now()}.txt`
+        : `transcricao_${videoId || 'video'}_${Date.now()}.txt`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Atualizar export no backend
+      updateExport(format);
     }
   };
 
   return (
-    <div className="content visible" style={{ top: "5%", transform: "translate(-50%, 0)", maxWidth: "900px", width: "95%" }}>
+    <div className="content visible" style={{ top: "5%", transform: "translate(-50%, 0)", maxWidth: "1400px", width: "95%" }}>
       {/* Botão Voltar - Canto Superior Direito */}
       <button
         onClick={() => navigate("/")}
@@ -193,25 +285,99 @@ const PlaygroundPage: React.FC = () => {
       {videoId && !loading && (
         <div style={{
           display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gridTemplateColumns: isMobile 
+            ? "1fr" 
+            : (viewMode === "split" || videoSize === "fullwidth")
+              ? "1fr" 
+              : videoSize === "large" 
+                ? "70% 30%" 
+                : "60% 40%",
           gap: "1.5rem",
           marginBottom: "1.5rem"
         }}>
           {/* Video Player */}
-          <div className="prompt-container">
-            <h2 style={{
-              color: "#00e5ff",
-              fontSize: "1.25rem",
-              marginBottom: "1rem",
-              fontWeight: "700"
+          <div 
+            className="prompt-container"
+            style={{
+              position: viewMode === "split" ? "relative" : (videoSize !== "fullwidth" && !isMobile ? "sticky" : "relative"),
+              top: viewMode === "split" ? "0" : (videoSize !== "fullwidth" && !isMobile ? "2rem" : "0"),
+              alignSelf: viewMode === "split" ? "stretch" : (videoSize !== "fullwidth" && !isMobile ? "start" : "stretch"),
+              maxHeight: viewMode === "split" ? "none" : (videoSize !== "fullwidth" && !isMobile ? "calc(100vh - 4rem)" : "none"),
+            }}
+          >
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem"
             }}>
-              Vídeo
-            </h2>
+              <h2 style={{
+                color: "#00e5ff",
+                fontSize: "1.25rem",
+                fontWeight: "700",
+                margin: 0
+              }}>
+                Vídeo
+              </h2>
+              {!isMobile && (
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    onClick={() => setVideoSize("normal")}
+                    style={{
+                      padding: "0.25rem 0.5rem",
+                      background: videoSize === "normal" ? "rgba(0, 229, 255, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${videoSize === "normal" ? "#00e5ff" : "rgba(255, 255, 255, 0.1)"}`,
+                      borderRadius: "3px",
+                      color: videoSize === "normal" ? "#00e5ff" : "#999",
+                      cursor: "pointer",
+                      fontSize: "0.75rem",
+                      transition: "all 0.2s"
+                    }}
+                    title="Tamanho normal (60%)"
+                  >
+                    Normal
+                  </button>
+                  <button
+                    onClick={() => setVideoSize("large")}
+                    style={{
+                      padding: "0.25rem 0.5rem",
+                      background: videoSize === "large" ? "rgba(0, 229, 255, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${videoSize === "large" ? "#00e5ff" : "rgba(255, 255, 255, 0.1)"}`,
+                      borderRadius: "3px",
+                      color: videoSize === "large" ? "#00e5ff" : "#999",
+                      cursor: "pointer",
+                      fontSize: "0.75rem",
+                      transition: "all 0.2s"
+                    }}
+                    title="Tamanho grande (70%)"
+                  >
+                    Grande
+                  </button>
+                  <button
+                    onClick={() => setVideoSize("fullwidth")}
+                    style={{
+                      padding: "0.25rem 0.5rem",
+                      background: videoSize === "fullwidth" ? "rgba(0, 229, 255, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${videoSize === "fullwidth" ? "#00e5ff" : "rgba(255, 255, 255, 0.1)"}`,
+                      borderRadius: "3px",
+                      color: videoSize === "fullwidth" ? "#00e5ff" : "#999",
+                      cursor: "pointer",
+                      fontSize: "0.75rem",
+                      transition: "all 0.2s"
+                    }}
+                    title="Largura completa (100%)"
+                  >
+                    Full
+                  </button>
+                </div>
+              )}
+            </div>
             <div
               style={{
                 position: "relative",
                 width: "100%",
-                paddingBottom: "56.25%",
+                paddingBottom: viewMode === "split" ? "0" : "56.25%",
+                height: viewMode === "split" ? "35vh" : undefined,
                 backgroundColor: "#000",
                 borderRadius: "4px",
                 overflow: "hidden",
@@ -239,46 +405,190 @@ const PlaygroundPage: React.FC = () => {
           </div>
 
           {/* Transcription or Summary */}
-          <div className="prompt-container">
-            {!summary ? (
-              <TranscriptionView
-                transcript={transcript}
-                segments={segments}
-                onSummarize={handleSummarize}
-                onTimestampClick={handleTimestampClick}
-                loading={loading}
-              />
-            ) : (
-              <>
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "1rem"
-                }}>
-                  <h2 style={{
-                    color: "#00e5ff",
-                    fontSize: "1.25rem",
-                    fontWeight: "700",
-                    margin: 0
-                  }}>
-                    Resumo
-                  </h2>
+          <div 
+            className="prompt-container"
+            style={{
+              maxHeight: viewMode === "split" 
+                ? "calc(65vh - 4rem)"
+                : (videoSize !== "fullwidth" && !isMobile ? "calc(100vh - 4rem)" : "none"),
+              overflowY: viewMode === "split" ? "hidden" : (videoSize !== "fullwidth" && !isMobile ? "auto" : "visible"),
+              padding: viewMode === "split" ? "0" : undefined,
+            }}
+          >
+            {/* Header com botões de controle */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: viewMode === "split" ? "1rem" : "0 0 1rem 0",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+              marginBottom: "1rem"
+            }}>
+              <h2 style={{
+                color: "#00e5ff",
+                fontSize: "1.25rem",
+                fontWeight: "700",
+                margin: 0
+              }}>
+                {viewMode === "transcript" ? "Transcrição" : viewMode === "summary" ? "Resumo" : "Transcrição & Resumo"}
+              </h2>
+              
+              {summary && (
+                <div style={{ display: "flex", gap: "0.5rem" }}>
                   <button
-                    onClick={() => resetSummary()}
+                    onClick={() => setViewMode("transcript")}
                     style={{
-                      padding: "0.5rem 1rem",
-                      background: "rgba(255, 255, 255, 0.1)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      padding: "0.5rem 0.75rem",
+                      background: viewMode === "transcript" ? "rgba(0, 229, 255, 0.3)" : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${viewMode === "transcript" ? "#00e5ff" : "rgba(255, 255, 255, 0.2)"}`,
                       borderRadius: "4px",
-                      color: "#fff",
+                      color: viewMode === "transcript" ? "#00e5ff" : "#fff",
                       cursor: "pointer",
-                      fontSize: "0.875rem"
+                      fontSize: "0.8rem"
                     }}
                   >
-                    Ver Transcrição
+                    Transcrição
+                  </button>
+                  <button
+                    onClick={() => setViewMode("summary")}
+                    style={{
+                      padding: "0.5rem 0.75rem",
+                      background: viewMode === "summary" ? "rgba(0, 229, 255, 0.3)" : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${viewMode === "summary" ? "#00e5ff" : "rgba(255, 255, 255, 0.2)"}`,
+                      borderRadius: "4px",
+                      color: viewMode === "summary" ? "#00e5ff" : "#fff",
+                      cursor: "pointer",
+                      fontSize: "0.8rem"
+                    }}
+                  >
+                    Resumo
+                  </button>
+                  <button
+                    onClick={() => setViewMode("split")}
+                    style={{
+                      padding: "0.5rem 0.75rem",
+                      background: viewMode === "split" ? "rgba(0, 229, 255, 0.3)" : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${viewMode === "split" ? "#00e5ff" : "rgba(255, 255, 255, 0.2)"}`,
+                      borderRadius: "4px",
+                      color: viewMode === "split" ? "#00e5ff" : "#fff",
+                      cursor: "pointer",
+                      fontSize: "0.8rem"
+                    }}
+                  >
+                    Ver Ambos
                   </button>
                 </div>
+              )}
+            </div>
+
+            {/* Content Area */}
+            {viewMode === "split" && summary ? (
+              <div style={{
+                display: "flex",
+                height: "calc(60vh - 4rem)",
+                gap: "0.5rem",
+                padding: "0 1rem 1rem 1rem"
+              }}>
+                {/* Transcrição */}
+                <div style={{
+                  width: `${splitRatio}%`,
+                  overflowY: "auto",
+                  paddingRight: "0.5rem",
+                  borderRight: "1px solid rgba(255, 255, 255, 0.1)"
+                }}>
+                  <TranscriptionView
+                    transcript={transcript}
+                    segments={segments}
+                  onSummarize={(context, keywords) => {
+                    handleSummarize(context, keywords);
+                    setViewMode("summary");
+                  }}
+                    onTimestampClick={handleTimestampClick}
+                    loading={loading}
+                    hasSummary={false}
+                    onExport={handleExport}
+                  />
+                </div>
+
+                {/* Resize Handle */}
+                <div
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const container = e.currentTarget.parentElement;
+                    if (!container) return;
+                    
+                    const startX = e.clientX;
+                    const startRatio = splitRatio;
+                    
+                    const handleMouseMove = (e: MouseEvent) => {
+                      const deltaX = e.clientX - startX;
+                      const containerWidth = container.offsetWidth;
+                      const deltaPercent = (deltaX / containerWidth) * 100;
+                      const newRatio = Math.min(Math.max(startRatio + deltaPercent, 30), 70);
+                      setSplitRatio(newRatio);
+                    };
+                    
+                    const handleMouseUp = () => {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                  style={{
+                    width: "4px",
+                    cursor: "col-resize",
+                    background: "rgba(0, 212, 255, 0.3)",
+                    borderRadius: "2px",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) => {e.currentTarget.style.background = "rgba(0, 212, 255, 0.6)";}}
+                  onMouseLeave={(e) => {e.currentTarget.style.background = "rgba(0, 212, 255, 0.3)";}}
+                />
+
+                {/* Resumo */}
+                <div style={{
+                  width: `${100 - splitRatio}%`,
+                  overflowY: "auto",
+                  paddingLeft: "0.5rem"
+                }}>
+                  <div>
+                    {summary.was_truncated && (
+                      <div style={{
+                        padding: "0.75rem",
+                        background: "rgba(255, 165, 0, 0.1)",
+                        border: "1px solid rgba(255, 165, 0, 0.3)",
+                        borderRadius: "4px",
+                        color: "#ffa500",
+                        fontSize: "0.875rem",
+                        marginBottom: "1rem"
+                      }}>
+                        ⚠️ Transcrição muito longa. Resumo baseado nos primeiros segmentos.
+                      </div>
+                    )}
+                    <SummaryView summary={summary} onExport={handleExport} />
+                  </div>
+                </div>
+              </div>
+            ) : viewMode === "transcript" || !summary ? (
+              <div style={{ padding: viewMode === "split" ? "0 1rem 1rem 1rem" : "0" }}>
+                <TranscriptionView
+                  transcript={transcript}
+                  segments={segments}
+                  onSummarize={(context, keywords) => {
+                    handleSummarize(context, keywords);
+                    setViewMode("summary");
+                  }}
+                  onTimestampClick={handleTimestampClick}
+                  loading={loading}
+                  hasSummary={summary !== null}
+                  onViewSummary={() => setViewMode("summary")}
+                  onExport={handleExport}
+                />
+              </div>
+            ) : (
+              <div style={{ padding: viewMode === "split" ? "0 1rem 1rem 1rem" : "0" }}>
                 {summary.was_truncated && (
                   <div style={{
                     padding: "0.75rem",
@@ -293,7 +603,7 @@ const PlaygroundPage: React.FC = () => {
                   </div>
                 )}
                 <SummaryView summary={summary} />
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -315,6 +625,13 @@ const PlaygroundPage: React.FC = () => {
           to { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* Modal de Registro */}
+      <UserRegistrationModal
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onSubmit={registerUser}
+      />
     </div>
   );
 };

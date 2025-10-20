@@ -38,6 +38,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .summarize-toggle-button:hover:not(:disabled) {
@@ -157,6 +159,7 @@
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-input {
@@ -179,8 +182,8 @@
 /* Transcript Segments */
 .transcript-segment {
   display: flex;
-  gap: 1rem;
-  padding: 0.75rem 0;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   transition: background 0.2s ease;
 }
@@ -191,12 +194,12 @@
 
 .timestamp-button {
   flex-shrink: 0;
-  padding: 0.25rem 0.75rem;
+  padding: 0.2rem 0.5rem;
   background: rgba(0, 212, 255, 0.15);
   border: 1px solid rgba(0, 212, 255, 0.3);
-  border-radius: 4px;
+  border-radius: 3px;
   color: #00d4ff;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-family: 'Courier New', monospace;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -228,4 +231,23 @@
   text-align: center;
   padding: 2rem;
   font-style: italic;
+}
+
+/* Responsividade para botões */
+@media (max-width: 768px) {
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .summarize-toggle-button {
+    width: 100%;
+    justify-content: center;
+  }
 }

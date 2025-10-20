@@ -1054,6 +1054,176 @@ async def analyze_keywords(request: dict):
         ) from e
 
 
+# === ENDPOINTS DE LEAD TRACKING (PLAYGROUND) ===
+
+
+class PlaygroundLeadRequest(BaseModel):
+    """Schema para registro de lead do Playground"""
+    user_name: str
+    user_email: EmailStr
+    video_url: str
+    video_id: str
+    action_type: str  # 'transcribe' ou 'summarize'
+
+
+class PlaygroundExportRequest(BaseModel):
+    """Schema para atualização de export do Playground"""
+    activity_id: int
+    export_format: str  # 'txt' ou 'pdf'
+
+
+@app.post("/playground/register-lead")
+async def register_playground_lead(request: PlaygroundLeadRequest):
+    """
+    Registra atividade de lead no Playground (transcrição/sumarização)
+
+    Returns:
+        activity_id: ID do registro criado
+    """
+    try:
+        # Validar action_type
+        if request.action_type not in ["transcribe", "summarize"]:
+            raise HTTPException(
+                status_code=400,
+                detail="action_type deve ser 'transcribe' ou 'summarize'"
+            )
+
+        activity_id = db_manager.save_playground_activity(
+            user_name=request.user_name,
+            user_email=request.user_email,
+            video_url=request.video_url,
+            video_id=request.video_id,
+            action_type=request.action_type
+        )
+
+        return {
+            "success": True,
+            "activity_id": activity_id,
+            "message": "Lead registrado com sucesso"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao registrar lead: {e!s}"
+        ) from e
+
+
+@app.post("/playground/update-export")
+async def update_playground_export(request: PlaygroundExportRequest):
+    """
+    Atualiza registro quando usuário exporta transcrição/resumo
+    """
+    try:
+        # Validar export_format
+        if request.export_format not in ["txt", "pdf"]:
+            raise HTTPException(
+                status_code=400,
+                detail="export_format deve ser 'txt' ou 'pdf'"
+            )
+
+        db_manager.update_playground_export(
+            activity_id=request.activity_id,
+            export_format=request.export_format
+        )
+
+        return {
+            "success": True,
+            "message": "Export registrado com sucesso"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao atualizar export: {e!s}"
+        ) from e
+
+
+@app.get("/admin/playground-leads")
+async def get_playground_leads(limit: int = 1000, offset: int = 0):
+    """
+    Lista todos os leads do Playground (Admin)
+    """
+    try:
+        activities = db_manager.get_all_playground_activities(
+            limit=limit,
+            offset=offset
+        )
+
+        return {
+            "success": True,
+            "total": len(activities),
+            "activities": activities
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar leads: {e!s}"
+        ) from e
+
+
+@app.get("/admin/playground-leads/download")
+async def download_playground_leads_csv():
+    """
+    Baixa leads do Playground em formato CSV
+    """
+    try:
+        import csv
+        from io import StringIO
+
+        from fastapi.responses import StreamingResponse
+
+        activities = db_manager.get_all_playground_activities(limit=10000)
+
+        # Criar CSV em memória
+        output = StringIO()
+        writer = csv.writer(output)
+
+        # Cabeçalho
+        writer.writerow([
+            "ID",
+            "Nome",
+            "Email",
+            "Video URL",
+            "Video ID",
+            "Ação",
+            "Exportou",
+            "Formato Export",
+            "Data/Hora"
+        ])
+
+        # Dados
+        for activity in activities:
+            writer.writerow([
+                activity.get("id", ""),
+                activity.get("user_name", ""),
+                activity.get("user_email", ""),
+                activity.get("video_url", ""),
+                activity.get("video_id", ""),
+                activity.get("action_type", ""),
+                "Sim" if activity.get("exported") else "Não",
+                activity.get("export_format", "N/A"),
+                activity.get("created_at", "")
+            ])
+
+        output.seek(0)
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=playground_leads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao gerar CSV: {e!s}"
+        ) from e
+
+
 # === EXECUÇÃO ===
 
 if __name__ == "__main__":

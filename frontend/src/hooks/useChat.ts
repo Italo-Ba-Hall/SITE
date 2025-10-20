@@ -223,10 +223,10 @@ export const useChat = (): UseChatReturn => {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      
-      // Log do erro para debug
-      console.error('Erro ao iniciar chat:', err);
-      
+
+      // eslint-disable-next-line no-console
+      console.error('Erro ao iniciar chat:', err); // Log crítico para debug de falhas de conexão
+
       // Definir erro mas NÃO adicionar mensagem de fallback ainda
       // O usuário precisa ver o erro real para poder tentar novamente
       setError(`Não foi possível conectar ao chat. ${errorMessage.includes('Failed to fetch') ? 'Verifique sua conexão.' : errorMessage}`);

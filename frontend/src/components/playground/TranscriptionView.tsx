@@ -14,6 +14,9 @@ interface TranscriptionViewProps {
   onSummarize: (context?: string, keywords?: string[]) => void;
   onTimestampClick?: (timestamp: number) => void;
   loading?: boolean;
+  hasSummary?: boolean;
+  onViewSummary?: () => void;
+  onExport?: (format: 'txt' | 'pdf') => void;
 }
 
 const TranscriptionView: React.FC<TranscriptionViewProps> = ({
@@ -22,6 +25,9 @@ const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   onSummarize,
   onTimestampClick,
   loading = false,
+  hasSummary = false,
+  onViewSummary,
+  onExport,
 }) => {
   const [context, setContext] = useState('');
   const [keywordsInput, setKeywordsInput] = useState('');
@@ -41,7 +47,7 @@ const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   const formatTimestamp = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleTimestampClick = (timestamp: number) => {
@@ -96,6 +102,30 @@ const TranscriptionView: React.FC<TranscriptionViewProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"
             />
+          )}
+          {hasSummary && onViewSummary && (
+            <button
+              className="summarize-toggle-button"
+              onClick={onViewSummary}
+              style={{
+                background: "rgba(0, 212, 255, 0.3)",
+                borderColor: "rgba(0, 212, 255, 0.7)",
+              }}
+            >
+              Ver Resumo Gerado
+            </button>
+          )}
+          {onExport && (
+            <button
+              className="summarize-toggle-button"
+              onClick={() => onExport('txt')}
+              style={{
+                background: "rgba(100, 200, 100, 0.3)",
+                borderColor: "rgba(100, 200, 100, 0.7)",
+              }}
+            >
+              Exportar TXT
+            </button>
           )}
           <button
             className="summarize-toggle-button"

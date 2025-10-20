@@ -78,6 +78,21 @@ class DatabaseManager:
                 )
             """)
 
+            # Tabela de atividades do Playground (Transcrição/Sumarização)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS playground_activities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_name TEXT NOT NULL,
+                    user_email TEXT NOT NULL,
+                    video_url TEXT NOT NULL,
+                    video_id TEXT NOT NULL,
+                    action_type TEXT NOT NULL,  -- 'transcribe' ou 'summarize'
+                    exported BOOLEAN DEFAULT 0,
+                    export_format TEXT,  -- 'txt', 'pdf', ou NULL
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # Índices para performance
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_leads_session_id ON leads(session_id)"
@@ -94,6 +109,12 @@ class DatabaseManager:
             )
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_playground_email ON playground_activities(user_email)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_playground_video_id ON playground_activities(video_id)"
             )
 
             conn.commit()
@@ -137,6 +158,8 @@ class DatabaseManager:
             )
 
             lead_id = cursor.lastrowid
+            if lead_id is None:
+                raise ValueError("Falha ao criar lead no banco de dados")
 
             # Criar notificação de novo lead
             self.create_notification(
@@ -350,7 +373,7 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             query = "SELECT * FROM leads"
-            params = []
+            params: list[Any] = []
 
             if status:
                 query += " WHERE status = ?"
@@ -427,7 +450,7 @@ class DatabaseManager:
                 FROM notifications n
                 LEFT JOIN leads l ON n.lead_id = l.id
             """
-            params = []
+            params: list[Any] = []
 
             if unread_only:
                 query += " WHERE n.is_read = FALSE"
@@ -457,6 +480,75 @@ class DatabaseManager:
             )
 
             conn.commit()
+
+    def save_playground_activity(
+        self,
+        user_name: str,
+        user_email: str,
+        video_url: str,
+        video_id: str,
+        action_type: str,  # 'transcribe' ou 'summarize'
+    ) -> int:
+        """Salva uma atividade do Playground"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                INSERT INTO playground_activities (
+                    user_name, user_email, video_url, video_id, action_type
+                ) VALUES (?, ?, ?, ?, ?)
+            """,
+                (user_name, user_email, video_url, video_id, action_type),
+            )
+
+            activity_id = cursor.lastrowid
+            if activity_id is None:
+                raise ValueError("Falha ao criar atividade no banco de dados")
+            conn.commit()
+            return activity_id
+
+    def update_playground_export(
+        self, activity_id: int, export_format: str  # 'txt' ou 'pdf'
+    ):
+        """Atualiza registro quando usuário exporta"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                UPDATE playground_activities
+                SET exported = 1, export_format = ?
+                WHERE id = ?
+            """,
+                (export_format, activity_id),
+            )
+
+            conn.commit()
+
+    def get_all_playground_activities(
+        self, limit: int = 1000, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        """Recupera todas as atividades do Playground"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM playground_activities
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+            """,
+                (limit, offset),
+            )
+
+            activities = []
+            for row in cursor.fetchall():
+                columns = [desc[0] for desc in cursor.description]
+                activity_data = dict(zip(columns, row, strict=False))
+                activities.append(activity_data)
+
+            return activities
 
     def get_stats(self) -> dict[str, Any]:
         """Retorna estatísticas do banco de dados"""
@@ -489,6 +581,15 @@ class DatabaseManager:
             cursor.execute("SELECT AVG(duration_minutes) FROM conversation_summaries")
             avg_duration = cursor.fetchone()[0] or 0
 
+            # Estatísticas do Playground
+            cursor.execute("SELECT COUNT(*) FROM playground_activities")
+            total_playground = cursor.fetchone()[0]
+
+            cursor.execute("""
+                SELECT action_type, COUNT(*) FROM playground_activities GROUP BY action_type
+            """)
+            playground_by_action = dict(cursor.fetchall())
+
             return {
                 "total_leads": total_leads,
                 "leads_by_status": leads_by_status,
@@ -496,6 +597,8 @@ class DatabaseManager:
                 "total_summaries": total_summaries,
                 "unread_notifications": unread_notifications,
                 "avg_conversation_duration": round(avg_duration, 2),
+                "total_playground_activities": total_playground,
+                "playground_by_action": playground_by_action,
             }
 
 
