@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reforma Tributária Brasileira - Análise Estratégica 2025</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            margin: 0 auto;
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin: 0.5rem 0;
+        }
+        .section-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        .timeline-container {
+            position: relative;
+            padding: 2rem 0;
+        }
+        .timeline-item {
+            position: relative;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            background: white;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        .timeline-item:hover {
+            transform: translateX(10px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+        .timeline-year {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        .impact-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin: 0.25rem;
+        }
+        .impact-positive {
+            background: #d4edda;
+            color: #155724;
+        }
+        .impact-negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .impact-neutral {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .calculator-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .calculator-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #f3f4f6;
+            border-bottom-color: #667eea;
+            border-radius: 50%;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .sector-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-top: 4px solid #667eea;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            transition: all 0.3s ease;
+        }
+        .sector-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            transform: translateY(-3px);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .info-box {
+            background: #eef2ff;
+            border-left: 4px solid #667eea;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .nav-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .comparison-table td, .comparison-table th {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .comparison-table th {
+            background: #f7fafc;
+            font-weight: 700;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Navigation -->
+    <nav class="nav-sticky">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl font-black gradient-text">Reforma Tributária BR | 2025</h1>
+                <div class="hidden md:flex gap-6 text-sm font-semibold">
+                    <a href="#overview" class="hover:text-purple-600 transition">Panorama</a>
+                    <a href="#impact" class="hover:text-purple-600 transition">Impactos</a>
+                    <a href="#timeline" class="hover:text-purple-600 transition">Cronograma</a>
+                    <a href="#calculator" class="hover:text-purple-600 transition">Calculadora</a>
+                    <a href="#insights" class="hover:text-purple-600 transition">Análise Setorial</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-black mb-4">
+                <span class="gradient-text">Reforma Tributária</span>
+                <br><span class="text-gray-700">Análise Estratégica 2025</span>
+            </h1>
+            <p class="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+                Análise completa do maior processo de reestruturação fiscal do Brasil em décadas.
+                Entenda os impactos, oportunidades e riscos para seu negócio.
+            </p>
+            <div class="mt-6 text-sm text-gray-500">
+                <span class="font-semibold">Última atualização:</span> Outubro 2025 |
+                <span class="font-semibold">Base legal:</span> EC 132/2023 • LC 214/2025
+            </div>
+        </header>
+
+        <!-- Executive Summary - KPIs Dashboard -->
+        <section id="overview" class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Panorama Executivo</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="kpi-card">
+                    <div class="text-sm opacity-90">Carga Tributária</div>
+                    <div class="kpi-value">33.7%</div>
+                    <div class="text-sm">do PIB (2024)</div>
+                </div>
+                <div class="kpi-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="text-sm opacity-90">Tempo de Compliance</div>
+                    <div class="kpi-value">1.500h</div>
+                    <div class="text-sm">por ano/empresa</div>
+                </div>
+                <div class="kpi-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="text-sm opacity-90">Alíquota IVA (estimada)</div>
+                    <div class="kpi-value">~28%</div>
+                    <div class="text-sm">CBS + IBS</div>
+                </div>
+                <div class="kpi-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <div class="text-sm opacity-90">Prazo de Transição</div>
+                    <div class="kpi-value">7 anos</div>
+                    <div class="text-sm">2026 - 2033</div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">🎯 Síntese Estratégica</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-3 text-green-700">✅ Oportunidades</h4>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><strong>Indústria:</strong> Recuperação plena de créditos tributários (eliminação do resíduo)</li>
+                            <li><strong>Exportadores:</strong> Deoneração total das exportações (alíquota zero)</li>
+                            <li><strong>Transparência:</strong> Fim da tributação "por dentro", consumidor verá o imposto</li>
+                            <li><strong>Competitividade:</strong> Fim da guerra fiscal entre estados</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-3 text-red-700">⚠️ Desafios & Riscos</h4>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><strong>Serviços:</strong> Aumento estimado de carga (mão de obra não gera crédito)</li>
+                            <li><strong>Alíquota 28%:</strong> Uma das mais altas do mundo (média OCDE: 19.2%)</li>
+                            <li><strong>Complexidade inicial:</strong> Convivência de 2 sistemas (2026-2032)</li>
+                            <li><strong>Comitê Gestor IBS:</strong> Concentração de poder e riscos de governança</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sistema Atual vs Novo -->
+        <section class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Transformação do Sistema Tributário</h2>
+
+            <div class="section-card">
+                <h3 class="text-2xl font-bold mb-6 text-center">De 5 Tributos Complexos para IVA Dual + Seletivo</h3>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Sistema Atual (até 2027)</th>
+                                <th class="text-center">→</th>
+                                <th>Novo Sistema (2033)</th>
+                                <th>Responsável</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="font-semibold">PIS + COFINS + IPI</td>
+                                <td class="text-center text-2xl">→</td>
+                                <td class="font-semibold text-blue-600">CBS (Contribuição sobre Bens e Serviços)</td>
+                                <td>União</td>
+                            </tr>
+                            <tr>
+                                <td class="font-semibold">ICMS + ISS</td>
+                                <td class="text-center text-2xl">→</td>
+                                <td class="font-semibold text-purple-600">IBS (Imposto sobre Bens e Serviços)</td>
+                                <td>Estados + Municípios</td>
+                            </tr>
+                            <tr>
+                                <td class="text-gray-500">Não existia</td>
+                                <td class="text-center text-2xl">→</td>
+                                <td class="font-semibold text-orange-600">IS (Imposto Seletivo)</td>
+                                <td>União</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info-box mt-6">
+                    <strong>💡 Destaque:</strong> O novo sistema adota o princípio de <strong>não-cumulatividade plena</strong>
+                    e <strong>tributação no destino</strong>, alinhando o Brasil às melhores práticas internacionais (modelo OCDE).
+                </div>
+            </div>
+
+            <!-- Imposto Seletivo Detail -->
+            <div class="section-card mt-8">
+                <h3 class="text-2xl font-bold mb-4">🎯 Imposto Seletivo (IS) - Extrafiscalidade</h3>
+                <p class="text-gray-700 mb-4">
+                    Tributo específico para desestimular consumo de produtos prejudiciais à saúde e ao meio ambiente.
+                    <strong>Objetivo:</strong> Não é arrecadatório, mas regulatório.
+                </p>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-card">
+                        <div class="text-3xl mb-2">🚗</div>
+                        <div class="font-bold">Veículos</div>
+                        <div class="text-sm text-gray-600">Combustão e elétricos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl mb-2">🚬</div>
+                        <div class="font-bold">Cigarros</div>
+                        <div class="text-sm text-gray-600">E derivados do tabaco</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl mb-2">🍺</div>
+                        <div class="font-bold">Bebidas Alcoólicas</div>
+                        <div class="text-sm text-gray-600">E açucaradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl mb-2">⛏️</div>
+                        <div class="font-bold">Minérios</div>
+                        <div class="text-sm text-gray-600">Extração mineral</div>
+                    </div>
+                </div>
+                <div class="warning-box mt-4">
+                    <strong>⚠️ Atenção:</strong> Alíquotas serão definidas por lei ordinária futura.
+                    Debate atual: tetos de 2%, 3% ou 5% para diferentes categorias.
+                </div>
+            </div>
+        </section>
+
+        <!-- IRPF Analysis -->
+        <section class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Imposto de Renda Pessoa Física (IRPF)</h2>
+
+            <div class="section-card">
+                <h3 class="text-2xl font-bold mb-4">Tabela Progressiva 2025</h3>
+                <p class="text-gray-700 mb-6">
+                    <strong>Isenção efetiva:</strong> R$ 3.036,00 (2 salários mínimos) via desconto simplificado de R$ 607,20.
+                    <br><strong>Projeto PL 1.087/2025:</strong> Aprovado na Câmara, propõe elevar isenção para R$ 5.000
+                    (aguarda Senado).
+                </p>
+                <div class="chart-container">
+                    <canvas id="irpfChart"></canvas>
+                </div>
+
+                <div class="info-box mt-6">
+                    <strong>📌 Nota técnica:</strong> O desconto simplificado é <strong>opcional</strong> e
+                    <strong>mutuamente excludente</strong> com deduções detalhadas (saúde, educação, previdência privada).
+                    O contribuinte deve optar pela modalidade mais vantajosa.
+                </div>
+            </div>
+        </section>
+
+        <!-- Cronograma Interativo -->
+        <section id="timeline" class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Cronograma de Transição</h2>
+
+            <div class="section-card">
+                <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">
+                    A implementação será gradual ao longo de <strong>7 anos</strong>, com período de teste e
+                    convivência entre os dois sistemas para garantir segurança jurídica e adaptação progressiva.
+                </p>
+
+                <div class="timeline-container">
+                    <div class="timeline-item">
+                        <div class="timeline-year">2026</div>
+                        <h4 class="font-bold text-lg mb-2">Fase Piloto (Teste Nacional)</h4>
+                        <p class="text-gray-700 mb-3">
+                            Alíquotas reduzidas de teste: <strong>CBS 0,9%</strong> e <strong>IBS 0,1%</strong>
+                        </p>
+                        <div class="progress-bar mb-2">
+                            <div class="progress-fill" style="width: 14%;"></div>
+                        </div>
+                        <div class="text-sm text-gray-600">Objetivo: Calibragem dos sistemas sem impacto financeiro</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-year">2027</div>
+                        <h4 class="font-bold text-lg mb-2">CBS Entra em Vigor + Fim do PIS/COFINS</h4>
+                        <p class="text-gray-700 mb-3">
+                            CBS substitui completamente PIS e COFINS. IPI zerado (exceto Zona Franca de Manaus).
+                        </p>
+                        <div class="progress-bar mb-2">
+                            <div class="progress-fill" style="width: 28%;"></div>
+                        </div>
+                        <div class="text-sm text-gray-600">IBS continua em teste com alíquota baixa</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-year">2029 - 2032</div>
+                        <h4 class="font-bold text-lg mb-2">Transição Gradual ICMS/ISS → IBS</h4>
+                        <p class="text-gray-700 mb-3">
+                            Redução progressiva de ICMS e ISS, com aumento gradual da alíquota do IBS.
+                        </p>
+                        <div class="progress-bar mb-2">
+                            <div class="progress-fill" style="width: 71%;"></div>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <strong>Convivência dos 2 sistemas:</strong> Maior complexidade operacional neste período
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-year">2033</div>
+                        <h4 class="font-bold text-lg mb-2">Sistema Pleno: Fim da Transição</h4>
+                        <p class="text-gray-700 mb-3">
+                            Extinção total de ICMS e ISS. Novo sistema funciona integralmente em todo território nacional.
+                        </p>
+                        <div class="progress-bar mb-2">
+                            <div class="progress-fill" style="width: 100%;"></div>
+                        </div>
+                        <div class="text-sm text-green-700 font-semibold">✓ Simplificação completa alcançada</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Impactos Setoriais Detalhados -->
+        <section id="impact" class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Análise de Impacto por Setor</h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Vencedores -->
+                <div class="section-card border-l-4 border-green-500">
+                    <h3 class="text-2xl font-bold mb-4 text-green-700">📈 Setores Beneficiados</h3>
+
+                    <div class="sector-card mb-4">
+                        <h4 class="font-bold text-lg mb-2">🏭 Indústria</h4>
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div class="impact-badge impact-positive">Não-cumulatividade plena</div>
+                            <div class="impact-badge impact-positive">Fim do resíduo tributário</div>
+                            <div class="impact-badge impact-positive">Redução de custos operacionais</div>
+                            <p class="mt-3"><strong>Impacto estimado:</strong> Redução de 3-5 p.p. na carga efetiva</p>
+                        </div>
+                    </div>
+
+                    <div class="sector-card mb-4">
+                        <h4 class="font-bold text-lg mb-2">🌾 Agronegócio</h4>
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div class="impact-badge impact-positive">Créditos tributários plenos</div>
+                            <div class="impact-badge impact-positive">Exportações 100% desoneradas</div>
+                            <div class="impact-badge impact-neutral">Possível regime diferenciado</div>
+                            <p class="mt-3"><strong>Impacto estimado:</strong> Neutralidade a leve redução de carga</p>
+                        </div>
+                    </div>
+
+                    <div class="sector-card">
+                        <h4 class="font-bold text-lg mb-2">📦 Comércio (atacado/varejo)</h4>
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div class="impact-badge impact-positive">Simplificação tributária</div>
+                            <div class="impact-badge impact-positive">Crédito pleno nas compras</div>
+                            <div class="impact-badge impact-neutral">Impacto depende do mix de produtos</div>
+                            <p class="mt-3"><strong>Impacto estimado:</strong> Variável por segmento</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Perdedores/Desafiados -->
+                <div class="section-card border-l-4 border-red-500">
+                    <h3 class="text-2xl font-bold mb-4 text-red-700">📉 Setores Desafiados</h3>
+
+                    <div class="sector-card mb-4">
+                        <h4 class="font-bold text-lg mb-2">💼 Serviços</h4>
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div class="impact-badge impact-negative">Aumento de carga tributária</div>
+                            <div class="impact-badge impact-negative">Mão de obra não gera crédito</div>
+                            <div class="impact-badge impact-negative">Menor aproveitamento de créditos</div>
+                            <p class="mt-3"><strong>Impacto estimado:</strong> Aumento de 5-8 p.p. na carga efetiva</p>
+                            <p class="text-xs text-red-600 mt-2">⚠️ Risco: Repasse aos preços pode gerar inflação no setor</p>
+                        </div>
+                    </div>
+
+                    <div class="sector-card mb-4">
+                        <h4 class="font-bold text-lg mb-2">🏗️ Construção Civil</h4>
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div class="impact-badge impact-negative">Custo de mão de obra sem crédito</div>
+                            <div class="impact-badge impact-neutral">Possível regime específico</div>
+                            <div class="impact-badge impact-negative">Aumento de preços final</div>
+                            <p class="mt-3"><strong>Impacto estimado:</strong> Aumento de 4-6 p.p. na carga</p>
+                            <p class="text-xs text-red-600 mt-2">⚠️ Risco: Encarecimento de imóveis e infraestrutura</p>
+                        </div>
+                    </div>
+
+                    <div class="sector-card">
+                        <h4 class="font-bold text-lg mb-2">💰 Serviços Financeiros</h4>
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div class="impact-badge impact-neutral">Regime específico sobre receita bruta</div>
+                            <div class="impact-badge impact-negative">Deduções restritas</div>
+                            <p class="mt-3"><strong>Impacto estimado:</strong> Manutenção ou leve aumento de carga</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparação Internacional -->
+            <div class="section-card mt-8">
+                <h3 class="text-2xl font-bold mb-6 text-center">Comparação Internacional - Alíquota do IVA</h3>
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="ivaComparisonChart"></canvas>
+                </div>
+                <div class="warning-box mt-6">
+                    <strong>⚠️ Alerta Estratégico:</strong> A alíquota estimada de 28% para o Brasil (CBS + IBS)
+                    seria uma das mais altas do mundo, superando a média da OCDE (19,2%) em 8,8 pontos percentuais.
+                    Isso pode impactar a competitividade e pressionar por exceções setoriais.
+                </div>
+            </div>
+        </section>
+
+        <!-- Regimes Especiais -->
+        <section class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Regimes Especiais e Exceções</h2>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="sector-card">
+                    <h3 class="text-xl font-bold mb-3">🏢 Simples Nacional</h3>
+                    <p class="text-sm text-gray-700 mb-3">
+                        Empresas poderão optar por permanecer no Simples ou migrar para o novo sistema CBS/IBS.
+                    </p>
+                    <div class="info-box text-sm">
+                        <strong>Dilema B2B:</strong> Empresas que vendem para outras empresas podem perder
+                        competitividade no Simples (não geram crédito para o comprador).
+                    </div>
+                </div>
+
+                <div class="sector-card">
+                    <h3 class="text-xl font-bold mb-3">🌴 Zona Franca de Manaus</h3>
+                    <p class="text-sm text-gray-700 mb-3">
+                        Garantia constitucional até 2073. Isenções migram para créditos presumidos.
+                    </p>
+                    <div class="warning-box text-sm">
+                        <strong>Atenção:</strong> Mudança de isenção para crédito presumido impacta fluxo de caixa.
+                        Empresas devem revisar planejamento financeiro.
+                    </div>
+                </div>
+
+                <div class="sector-card">
+                    <h3 class="text-xl font-bold mb-3">💊 Saúde & Educação</h3>
+                    <p class="text-sm text-gray-700 mb-3">
+                        Setores essenciais devem ter alíquotas reduzidas (50-60% da alíquota padrão).
+                    </p>
+                    <div class="info-box text-sm">
+                        <strong>Cashback:</strong> Famílias de baixa renda terão devolução de parte do imposto
+                        pago em itens essenciais.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calculadora de Impacto -->
+        <section id="calculator" class="mb-16">
+            <div class="section-card">
+                <h2 class="text-3xl font-bold text-center mb-4 gradient-text">🧮 Calculadora de Impacto Tributário</h2>
+                <p class="text-center text-gray-600 mb-8">
+                    Simule o impacto estimado da reforma no seu negócio
+                </p>
+
+                <div class="max-w-2xl mx-auto">
+                    <div class="grid md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Setor da Empresa</label>
+                            <select id="calc-sector" class="calculator-input">
+                                <option value="industria">Indústria</option>
+                                <option value="servicos">Serviços</option>
+                                <option value="comercio">Comércio</option>
+                                <option value="construcao">Construção Civil</option>
+                                <option value="agro">Agronegócio</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Faturamento Anual (R$)</label>
+                            <input type="number" id="calc-revenue" class="calculator-input" placeholder="Ex: 5000000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Carga Tributária Atual (%)</label>
+                            <input type="number" id="calc-current-tax" class="calculator-input" placeholder="Ex: 12.5" step="0.1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">% de Custos com Insumos</label>
+                            <input type="number" id="calc-input-costs" class="calculator-input" placeholder="Ex: 60" step="0.1">
+                        </div>
+                    </div>
+
+                    <button onclick="calculateImpact()" class="btn-primary w-full">
+                        Calcular Impacto Estimado
+                    </button>
+
+                    <div id="calc-result" class="mt-8 hidden">
+                        <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6">
+                            <h3 class="text-xl font-bold mb-4 text-center">Resultado da Simulação</h3>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-white rounded-lg p-4 text-center">
+                                    <div class="text-sm text-gray-600 mb-1">Carga Estimada no Novo Sistema</div>
+                                    <div id="calc-new-tax" class="text-3xl font-bold text-purple-600"></div>
+                                </div>
+                                <div class="bg-white rounded-lg p-4 text-center">
+                                    <div class="text-sm text-gray-600 mb-1">Variação Estimada</div>
+                                    <div id="calc-variation" class="text-3xl font-bold"></div>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-sm text-gray-600 text-center" id="calc-analysis"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Riscos e Oportunidades Estratégicas -->
+        <section class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">Riscos & Oportunidades Estratégicas</h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="section-card">
+                    <h3 class="text-xl font-bold mb-4 text-green-700">🎯 Oportunidades de Planejamento</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-2 text-xl">✓</span>
+                            <span><strong>Reestruturação de Cadeias de Valor:</strong> Revisão de modelos de negócio para maximizar créditos tributários</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-2 text-xl">✓</span>
+                            <span><strong>Localização Estratégica:</strong> Fim da guerra fiscal permite decisões baseadas em eficiência operacional</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-2 text-xl">✓</span>
+                            <span><strong>Sistemas e Tecnologia:</strong> Investimento em automação fiscal pode gerar vantagem competitiva</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-2 text-xl">✓</span>
+                            <span><strong>Revisão de Pricing:</strong> Transparência tributária exige nova estratégia de precificação</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="section-card">
+                    <h3 class="text-xl font-bold mb-4 text-red-700">⚠️ Riscos a Monitorar</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start">
+                            <span class="text-red-500 mr-2 text-xl">!</span>
+                            <span><strong>Complexidade de Transição (2026-2032):</strong> Convivência de 2 sistemas aumenta custos de compliance</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-red-500 mr-2 text-xl">!</span>
+                            <span><strong>Comitê Gestor IBS:</strong> Concentração de poder e déficit de representatividade do setor privado</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-red-500 mr-2 text-xl">!</span>
+                            <span><strong>Judicialização:</strong> Expectativa de aumento de litígios sobre definições e aplicação das normas</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-red-500 mr-2 text-xl">!</span>
+                            <span><strong>Alíquota Efetiva:</strong> Pressão por exceções pode elevar alíquota geral acima de 28%</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Governança do IBS -->
+            <div class="section-card mt-6">
+                <h3 class="text-2xl font-bold mb-4">🏛️ Comitê Gestor do IBS - Análise Crítica</h3>
+                <p class="text-gray-700 mb-4">
+                    O PLP 108/2024 (aprovado no Senado, retornou à Câmara) cria um órgão com poderes normativos,
+                    arrecadatórios e fiscalizatórios sem precedentes no sistema tributário brasileiro.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="warning-box">
+                        <h4 class="font-bold mb-2">Pontos de Atenção</h4>
+                        <ul class="text-sm space-y-1">
+                            <li>• Concentração de poder regulatório</li>
+                            <li>• Representação limitada dos contribuintes</li>
+                            <li>• Riscos tecnológicos na implementação</li>
+                            <li>• Fragmentação do contencioso (IBS vs CBS)</li>
+                        </ul>
+                    </div>
+                    <div class="info-box">
+                        <h4 class="font-bold mb-2">Benefícios Esperados</h4>
+                        <ul class="text-sm space-y-1">
+                            <li>• Uniformização de normas entre 27 estados</li>
+                            <li>• Fim definitivo da guerra fiscal</li>
+                            <li>• Arrecadação e fiscalização centralizadas</li>
+                            <li>• Maior segurança jurídica (em tese)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Análise Setorial Rápida -->
+        <section id="insights" class="mb-16">
+            <h2 class="text-4xl font-bold text-center mb-8 gradient-text">📊 Análise Setorial Rápida</h2>
+
+            <div class="section-card">
+                <h3 class="text-2xl font-bold mb-4">Impacto por Setor</h3>
+                <p class="text-gray-600 mb-6">Selecione um setor para visualizar o resumo de impactos esperados com a reforma tributária.</p>
+
+                <div class="mb-6">
+                    <select id="sector-select" class="calculator-input">
+                        <option value="">Selecione um setor...</option>
+                        <option value="servicos">Serviços</option>
+                        <option value="industria">Indústria</option>
+                        <option value="comercio">Comércio Varejista</option>
+                        <option value="agro">Agronegócio</option>
+                        <option value="tecnologia">Tecnologia</option>
+                        <option value="construcao">Construção Civil</option>
+                        <option value="saude">Saúde</option>
+                        <option value="educacao">Educação</option>
+                    </select>
+                </div>
+
+                <div id="sector-analysis-result" class="bg-gray-50 p-6 rounded-lg">
+                    <p class="text-gray-500 text-center">Selecione um setor acima para ver a análise de impacto.</p>
+                </div>
+            </div>
+
+            <!-- Q&A Section - Hidden for future implementation -->
+            <div class="section-card" style="display: none;">
+                <h3 class="text-2xl font-bold mb-3">💬 Perguntas & Respostas sobre a Reforma</h3>
+                <p class="text-gray-600 mb-6">Faça sua pergunta e receba resposta especializada</p>
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <input type="text" id="qa-input" class="calculator-input" placeholder="Ex: Como funciona o cashback? Qual o impacto para pequenas empresas?">
+                    <button id="ask-qa-btn" class="btn-primary md:w-auto">Perguntar ao Especialista</button>
+                </div>
+                <div id="qa-result" class="mt-6 bg-gray-50 p-6 rounded-lg min-h-[150px] flex items-center justify-center">
+                    <p class="text-gray-500">A resposta aparecerá aqui após você fazer sua pergunta.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center mt-16 pt-8 border-t-2">
+            <div class="section-card">
+                <h3 class="font-bold text-lg mb-4">Fontes e Referências</h3>
+                <div class="grid md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div>
+                        <strong>Base Legal</strong>
+                        <ul class="mt-2 space-y-1">
+                            <li>• EC 132/2023</li>
+                            <li>• LC 214/2025</li>
+                            <li>• MP 1.294/2025</li>
+                            <li>• PL 1.087/2025</li>
+                            <li>• PLP 108/2024</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>Fontes Oficiais</strong>
+                        <ul class="mt-2 space-y-1">
+                            <li>• Senado Federal</li>
+                            <li>• Câmara dos Deputados</li>
+                            <li>• Receita Federal</li>
+                            <li>• Ministério da Fazenda</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>Análises Técnicas</strong>
+                        <ul class="mt-2 space-y-1">
+                            <li>• FGV - Fundação Getúlio Vargas</li>
+                            <li>• Tendências Consultoria</li>
+                            <li>• OCDE (dados comparativos)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-6 pt-6 border-t text-xs text-gray-500">
+                    <p><strong>Disclaimer:</strong> Este material tem caráter informativo e educacional. Não substitui consultoria jurídica
+                    ou tributária especializada. As estimativas e projeções apresentadas baseiam-se em dados disponíveis em outubro/2025
+                    e podem sofrer alterações conforme evolução do processo legislativo e regulatório.</p>
+                    <p class="mt-3">
+                        <strong>Última atualização:</strong> 22 de Outubro de 2025<br>
+                        <strong>Versão:</strong> 2.0 - Análise Estratégica Completa
+                    </p>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // Utility Functions
+        function wrapLabels(label, maxLength = 16) {
+            if (typeof label !== 'string' || label.length <= maxLength) return label;
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            words.forEach(word => {
+                if ((currentLine + ' ' + word).trim().length > maxLength) {
+                    lines.push(currentLine.trim());
+                    currentLine = word;
+                } else {
+                    currentLine = (currentLine + ' ' + word).trim();
+                }
+            });
+            if (currentLine) lines.push(currentLine.trim());
+            return lines;
+        }
+
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            return Array.isArray(label) ? label.join(' ') : label;
+        };
+
+        const colorPalette = {
+            primary: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'],
+            gradient: ['#667eea', '#764ba2']
+        };
+
+        // IRPF Chart
+        const irpfCtx = document.getElementById('irpfChart').getContext('2d');
+        new Chart(irpfCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Isento\n(até R$ 2.259)', '7.5%\n(R$ 2.259-2.824)', '15%\n(R$ 2.824-3.751)', '22.5%\n(R$ 3.751-4.665)', '27.5%\n(acima R$ 4.665)'],
+                datasets: [{
+                    label: 'Alíquota IRPF 2025',
+                    data: [0, 7.5, 15, 22.5, 27.5],
+                    backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444'],
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y === 0 ? 'Isento de IRPF' : 'Alíquota: ' + context.parsed.y + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 30,
+                        title: { display: true, text: 'Alíquota (%)' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Faixas de Renda Mensal' }
+                    }
+                }
+            }
+        });
+
+        // IVA Comparison Chart
+        const ivaCtx = document.getElementById('ivaComparisonChart').getContext('2d');
+        new Chart(ivaCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Brasil\n(estimado)', 'Hungria', 'Suécia', 'Média\nOCDE', 'Alemanha', 'França'],
+                datasets: [{
+                    label: 'Alíquota do IVA (%)',
+                    data: [28, 27, 25, 19.2, 19, 20],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#6366f1', '#8b5cf6'],
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'IVA: ' + context.parsed.y + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 30,
+                        title: { display: true, text: 'Alíquota (%)' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Países' }
+                    }
+                }
+            }
+        });
+
+        // Calculator Logic
+        function calculateImpact() {
+            const sector = document.getElementById('calc-sector').value;
+            const revenue = parseFloat(document.getElementById('calc-revenue').value);
+            const currentTax = parseFloat(document.getElementById('calc-current-tax').value);
+            const inputCosts = parseFloat(document.getElementById('calc-input-costs').value);
+
+            if (!revenue || !currentTax || !inputCosts) {
+                alert('Por favor, preencha todos os campos.');
+                return;
+            }
+
+            // Estimativas simplificadas de impacto
+            const impacts = {
+                'industria': -3.5, // Redução de 3.5 p.p.
+                'servicos': 6.5,   // Aumento de 6.5 p.p.
+                'comercio': -1.0,  // Leve redução
+                'construcao': 5.0, // Aumento de 5 p.p.
+                'agro': -2.0       // Redução de 2 p.p.
+            };
+
+            const creditFactor = inputCosts / 100; // Quanto maior os insumos, maior o benefício de créditos
+            const adjustedImpact = impacts[sector] * (1 - creditFactor * 0.3);
+
+            const newTax = currentTax + adjustedImpact;
+            const variation = adjustedImpact;
+
+            document.getElementById('calc-new-tax').textContent = newTax.toFixed(2) + '%';
+            document.getElementById('calc-variation').textContent = (variation > 0 ? '+' : '') + variation.toFixed(2) + ' p.p.';
+            document.getElementById('calc-variation').style.color = variation > 0 ? '#ef4444' : '#10b981';
+
+            let analysis = '';
+            if (variation > 3) {
+                analysis = '⚠️ Impacto significativo esperado. Recomenda-se planejamento tributário detalhado e revisão de precificação.';
+            } else if (variation > 0) {
+                analysis = '⚠️ Aumento moderado esperado. Avalie oportunidades de reestruturação para maximizar créditos tributários.';
+            } else if (variation < -2) {
+                analysis = '✅ Benefício substancial esperado. Aproveite para revisar estratégia competitiva e investimentos.';
+            } else {
+                analysis = '✅ Impacto relativamente neutro. Foque na preparação operacional para a transição.';
+            }
+
+            document.getElementById('calc-analysis').textContent = analysis;
+            document.getElementById('calc-result').classList.remove('hidden');
+        }
+
+        // Sector Analysis - Static Data
+        const sectorAnalysis = {
+            servicos: {
+                title: '💼 Serviços',
+                impact: 'Aumento de carga (5-8 p.p.)',
+                impactClass: 'text-red-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Tributação pelo novo IVA (CBS + IBS) substituindo PIS/COFINS e ISS. Mão de obra não gera créditos tributários.',
+                    '<strong>Impacto na carga:</strong> Aumento estimado de 5-8 pontos percentuais, especialmente em serviços intensivos em mão de obra.',
+                    '<strong>Oportunidades:</strong> Revisão de modelo de negócio para terceirização estratégica; automação de processos para reduzir peso da mão de obra.',
+                    '<strong>Riscos:</strong> Necessidade de repasse aos preços pode reduzir competitividade; clientes B2B podem preferir fornecedores com maior geração de créditos.'
+                ]
+            },
+            industria: {
+                title: '🏭 Indústria',
+                impact: 'Redução de carga (3-5 p.p.)',
+                impactClass: 'text-green-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Não-cumulatividade plena elimina resíduo tributário. Créditos integrais sobre insumos, energia e investimentos.',
+                    '<strong>Impacto na carga:</strong> Redução estimada de 3-5 pontos percentuais na carga efetiva.',
+                    '<strong>Oportunidades:</strong> Revisão de cadeia de suprimentos; recuperação de créditos acumulados; maior previsibilidade tributária.',
+                    '<strong>Riscos:</strong> Período de transição (2026-2032) com dois sistemas simultâneos aumenta complexidade temporária.'
+                ]
+            },
+            comercio: {
+                title: '📦 Comércio Varejista',
+                impact: 'Impacto neutro a levemente positivo',
+                impactClass: 'text-blue-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Simplificação com unificação de tributos. Crédito pleno sobre compras de mercadorias.',
+                    '<strong>Impacto na carga:</strong> Variável conforme mix de produtos, mas tendência de neutralidade ou leve redução.',
+                    '<strong>Oportunidades:</strong> Transparência tributária favorece precificação; fim da guerra fiscal equilibra concorrência entre estados.',
+                    '<strong>Riscos:</strong> Consumidor final verá imposto destacado (pode afetar percepção de preço); necessidade de adaptação de sistemas.'
+                ]
+            },
+            agro: {
+                title: '🌾 Agronegócio',
+                impact: 'Neutro com possível redução',
+                impactClass: 'text-green-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Exportações 100% desoneradas. Possível regime diferenciado com alíquotas reduzidas.',
+                    '<strong>Impacto na carga:</strong> Neutralidade ou leve redução, com benefícios maiores para exportadores.',
+                    '<strong>Oportunidades:</strong> Créditos tributários plenos aumentam competitividade; desburocratização na exportação.',
+                    '<strong>Riscos:</strong> Definição de regimes especiais ainda em discussão; transição pode criar incertezas de curto prazo.'
+                ]
+            },
+            tecnologia: {
+                title: '💻 Tecnologia',
+                impact: 'Aumento moderado (3-6 p.p.)',
+                impactClass: 'text-orange-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Serviços de TI tributados pelo IVA. Mão de obra qualificada (principal custo) não gera créditos.',
+                    '<strong>Impacto na carga:</strong> Aumento estimado de 3-6 pontos percentuais, variando por modelo de negócio.',
+                    '<strong>Oportunidades:</strong> Exportação de software/SaaS totalmente desonerada; possibilidade de regime específico para inovação.',
+                    '<strong>Riscos:</strong> Competitividade internacional pode ser afetada; empresas de body shop (locação de mão de obra) mais impactadas.'
+                ]
+            },
+            construcao: {
+                title: '🏗️ Construção Civil',
+                impact: 'Aumento significativo (4-6 p.p.)',
+                impactClass: 'text-red-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Fim do regime especial atual. Mão de obra (50-60% do custo) não gera créditos tributários.',
+                    '<strong>Impacto na carga:</strong> Aumento estimado de 4-6 pontos percentuais, com impacto direto no preço final.',
+                    '<strong>Oportunidades:</strong> Possível regime específico em discussão; créditos sobre materiais e equipamentos são integrais.',
+                    '<strong>Riscos:</strong> Encarecimento de imóveis e infraestrutura; redução de margem ou necessidade de repasse de custos.'
+                ]
+            },
+            saude: {
+                title: '💊 Saúde',
+                impact: 'Redução pela alíquota diferenciada',
+                impactClass: 'text-green-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Setor essencial com alíquota reduzida (60% da padrão, ~16,8%). Simplificação tributária.',
+                    '<strong>Impacto na carga:</strong> Redução para maioria dos segmentos, especialmente hospitais e clínicas.',
+                    '<strong>Oportunidades:</strong> Cashback para população de baixa renda amplia acesso; maior previsibilidade tributária.',
+                    '<strong>Riscos:</strong> Debate sobre abrangência do benefício (quais atividades são "saúde"); transição de regimes especiais.'
+                ]
+            },
+            educacao: {
+                title: '📚 Educação',
+                impact: 'Redução pela alíquota diferenciada',
+                impactClass: 'text-green-600',
+                points: [
+                    '<strong>Principais mudanças:</strong> Alíquota reduzida para educação formal (60% da padrão). Uniformização de tratamento entre estados.',
+                    '<strong>Impacto na carga:</strong> Redução significativa, especialmente para instituições privadas.',
+                    '<strong>Oportunidades:</strong> Investimentos em infraestrutura com créditos integrais; expansão facilitada entre estados.',
+                    '<strong>Riscos:</strong> Definição de "educação formal" pode excluir cursos livres e treinamentos; entidades sem fins lucrativos aguardam regulamentação.'
+                ]
+            }
+        };
+
+        // Sector Analysis Event Listener
+        document.getElementById('sector-select').addEventListener('change', function() {
+            const sector = this.value;
+            const resultDiv = document.getElementById('sector-analysis-result');
+
+            if (!sector) {
+                resultDiv.innerHTML = '<p class="text-gray-500 text-center">Selecione um setor acima para ver a análise de impacto.</p>';
+                return;
+            }
+
+            const analysis = sectorAnalysis[sector];
+            if (analysis) {
+                const pointsHTML = analysis.points.map(point => `<p class="text-gray-700 mb-3">${point}</p>`).join('');
+                resultDiv.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-xl font-bold">${analysis.title}</h4>
+                            <span class="font-bold ${analysis.impactClass}">${analysis.impact}</span>
+                        </div>
+                        ${pointsHTML}
+                    </div>
+                `;
+            }
+        });
+
+        // Smooth scroll for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

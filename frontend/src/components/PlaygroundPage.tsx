@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import usePlayground from "../hooks/usePlayground";
 import YouTube from "react-youtube";
 import TranscriptionView from "./playground/TranscriptionView";
@@ -7,7 +6,6 @@ import SummaryView from "./playground/SummaryView";
 import UserRegistrationModal from "./UserRegistrationModal";
 
 const PlaygroundPage: React.FC = () => {
-  const navigate = useNavigate();
   const {
     videoId,
     transcript,
@@ -142,38 +140,7 @@ const PlaygroundPage: React.FC = () => {
   };
 
   return (
-    <div className="content visible" style={{ top: "5%", transform: "translate(-50%, 0)", maxWidth: "1400px", width: "95%" }}>
-      {/* Botão Voltar - Canto Superior Direito */}
-      <button
-        onClick={() => navigate("/")}
-        className="prompt-prefix"
-        style={{
-          position: "fixed",
-          top: "2rem",
-          right: "-5rem",
-          zIndex: 100,
-          fontSize: "0.875rem",
-          background: "transparent",
-          border: "1px solid #00e5ff",
-          color: "#00e5ff",
-          padding: "0.5rem 1rem",
-          borderRadius: "4px",
-          cursor: "pointer",
-          transition: "all 0.3s",
-          fontFamily: "'Roboto Mono', monospace",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.1)";
-          e.currentTarget.style.color = "#00b8cc";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "transparent";
-          e.currentTarget.style.color = "#00e5ff";
-        }}
-      >
-        ← Voltar
-      </button>
-
+    <div className="content visible" style={{ top: "15%", transform: "translate(-50%, 0)", maxWidth: "1400px", width: "95%" }}>
       {/* Logo */}
       <div className="logo" style={{ marginBottom: "1rem" }}>YouTube Playground</div>
       <div className="subtitle" style={{ marginBottom: "2rem" }}>Transcrição e Sumarização</div>

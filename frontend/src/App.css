@@ -164,3 +164,142 @@
   scrollbar-width: thin;
   scrollbar-color: #374151 #1f2937;
 }
+
+/* ========================================
+   HALL-DEV-TAX-Intelligence Button Styles
+   ======================================== */
+
+.tax-intelligence-button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 3rem auto 2rem;
+  max-width: 600px;
+  padding: 0 1rem;
+}
+
+.hall-tax-intelligence-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem 2.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  border-radius: 50px;
+  border: 2px solid transparent;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.hall-tax-intelligence-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #00e5ff 0%, #00d4ff 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+
+.hall-tax-intelligence-btn:hover::before {
+  opacity: 1;
+}
+
+.hall-tax-intelligence-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 229, 255, 0.5);
+  border-color: #00e5ff;
+}
+
+.hall-tax-intelligence-btn:active {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 229, 255, 0.3);
+}
+
+.tax-btn-icon,
+.tax-btn-text,
+.tax-btn-arrow {
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.tax-btn-icon {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.tax-btn-text {
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.tax-btn-arrow {
+  font-size: 1.25rem;
+  font-weight: 900;
+  transition: transform 0.3s ease;
+}
+
+.hall-tax-intelligence-btn:hover .tax-btn-arrow {
+  transform: translateX(4px);
+}
+
+/* Glow effect on hover */
+.hall-tax-intelligence-btn:hover .tax-btn-icon {
+  animation: icon-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .tax-intelligence-button-container {
+    margin: 2rem auto 1.5rem;
+  }
+
+  .hall-tax-intelligence-btn {
+    padding: 0.875rem 1.75rem;
+    font-size: 0.875rem;
+    gap: 0.625rem;
+  }
+
+  .tax-btn-icon {
+    font-size: 1.25rem;
+  }
+
+  .tax-btn-text {
+    font-size: 0.875rem;
+  }
+
+  .tax-btn-arrow {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hall-tax-intelligence-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.75rem;
+  }
+
+  .tax-btn-text {
+    font-size: 0.75rem;
+  }
+}

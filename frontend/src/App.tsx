@@ -12,6 +12,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 const MainContent = lazy(() => import("./components/MainContent"));
 const AdminAccess = lazy(() => import("./components/AdminAccess"));
 const PlaygroundPage = lazy(() => import("./components/PlaygroundPage"));
+const FiscalReportPage = lazy(() => import("./components/FiscalReportPage"));
 
 function App() {
   const isAdminMode = useMemo(() => {
@@ -53,6 +54,7 @@ function App() {
                   element={isAdminMode ? <AdminAccess /> : <MainContent />}
                 />
                 <Route path="/playground" element={<PlaygroundPage />} />
+                <Route path="/fiscal-reports" element={<FiscalReportPage />} />
               </Routes>
             </Suspense>
           </div>
