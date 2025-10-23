@@ -140,6 +140,10 @@ class PlaygroundService:
             Dicionário com dados da transcrição
         """
         import requests
+        import urllib3
+
+        # Desabilitar warnings de SSL (necessário para proxy)
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         api_key = os.getenv("SCRAPERAPI_KEY")
 
@@ -155,14 +159,23 @@ class PlaygroundService:
 
         # Monkeypatch temporário para injetar proxy na biblioteca
         original_request = requests.get
+        original_session_request = requests.Session.request
 
         def patched_request(*args, **kwargs):
             kwargs['proxies'] = proxies
             kwargs['timeout'] = 30
+            kwargs['verify'] = False  # Desabilitar verificação SSL
             return original_request(*args, **kwargs)
 
-        # Aplicar patch temporariamente
+        def patched_session_request(self, method, url, **kwargs):
+            kwargs['proxies'] = proxies
+            kwargs['timeout'] = 30
+            kwargs['verify'] = False  # Desabilitar verificação SSL
+            return original_session_request(self, method, url, **kwargs)
+
+        # Aplicar patches temporariamente
         requests.get = patched_request
+        requests.Session.request = patched_session_request
 
         try:
             api = YouTubeTranscriptApi()
@@ -199,8 +212,9 @@ class PlaygroundService:
             return self._process_transcript_data(video_id, transcript_data, language)
 
         finally:
-            # Restaurar requests.get original
+            # Restaurar funções originais
             requests.get = original_request
+            requests.Session.request = original_session_request
 
     def _process_transcript_data(self, video_id: str, transcript_data: list, language: str) -> dict[str, Any]:
         """
