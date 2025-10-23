@@ -74,11 +74,180 @@ class PlaygroundService:
 
         return None
 
+    def _get_transcript_direct(self, video_id: str) -> dict[str, Any]:
+        """
+        Obtém transcrição diretamente (método padrão - funciona em ambiente local)
+
+        Args:
+            video_id: ID do vídeo do YouTube
+
+        Returns:
+            Dicionário com dados da transcrição
+        """
+        # Criar instância da API
+        api = YouTubeTranscriptApi()
+
+        # Obter lista de transcrições disponíveis para o vídeo
+        transcript_list = api.list(video_id)
+
+        # Coletar todas as transcrições disponíveis
+        # Estratégia: Priorizar transcrições manuais sobre automáticas
+        manual_transcripts = []
+        generated_transcripts = []
+
+        # Iterar sobre o TranscriptList para separar manuais e automáticas
+        for transcript in transcript_list:
+            if transcript.is_generated:
+                generated_transcripts.append(transcript)
+            else:
+                manual_transcripts.append(transcript)
+
+        # Escolher a primeira transcrição disponível
+        # Prioridade: Manual > Automática (idioma original)
+        selected_transcript = None
+
+        if manual_transcripts:
+            selected_transcript = manual_transcripts[0]
+        elif generated_transcripts:
+            selected_transcript = generated_transcripts[0]
+        else:
+            raise NoTranscriptFound(
+                video_id=video_id,
+                requested_language_codes=[],
+                transcript_data=None
+            )
+
+        # Buscar os dados da transcrição selecionada
+        transcript_data = selected_transcript.fetch()
+        language = selected_transcript.language_code
+
+        if not transcript_data or len(transcript_data) == 0:
+            raise ValueError(
+                "Não foi possível obter transcrição. "
+                "O vídeo pode não ter legendas disponíveis."
+            )
+
+        return self._process_transcript_data(video_id, transcript_data, language)
+
+    def _get_transcript_with_scraperapi(self, video_id: str) -> dict[str, Any]:
+        """
+        Obtém transcrição usando ScraperAPI como proxy (para ambientes cloud bloqueados)
+
+        Args:
+            video_id: ID do vídeo do YouTube
+
+        Returns:
+            Dicionário com dados da transcrição
+        """
+        import requests
+
+        api_key = os.getenv("SCRAPERAPI_KEY")
+
+        if not api_key:
+            raise ValueError("SCRAPERAPI_KEY não configurada")
+
+        # ScraperAPI como proxy HTTP
+        proxy_url = f"http://scraperapi:{api_key}@proxy-server.scraperapi.com:8001"
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url
+        }
+
+        # Monkeypatch temporário para injetar proxy na biblioteca
+        original_request = requests.get
+
+        def patched_request(*args, **kwargs):
+            kwargs['proxies'] = proxies
+            kwargs['timeout'] = 30
+            return original_request(*args, **kwargs)
+
+        # Aplicar patch temporariamente
+        requests.get = patched_request
+
+        try:
+            api = YouTubeTranscriptApi()
+            transcript_list = api.list(video_id)
+
+            # Priorizar transcrições manuais
+            manual_transcripts = []
+            generated_transcripts = []
+
+            for transcript in transcript_list:
+                if transcript.is_generated:
+                    generated_transcripts.append(transcript)
+                else:
+                    manual_transcripts.append(transcript)
+
+            selected_transcript = None
+            if manual_transcripts:
+                selected_transcript = manual_transcripts[0]
+            elif generated_transcripts:
+                selected_transcript = generated_transcripts[0]
+            else:
+                raise NoTranscriptFound(
+                    video_id=video_id,
+                    requested_language_codes=[],
+                    transcript_data=None
+                )
+
+            transcript_data = selected_transcript.fetch()
+            language = selected_transcript.language_code
+
+            if not transcript_data or len(transcript_data) == 0:
+                raise ValueError("Transcrição vazia")
+
+            return self._process_transcript_data(video_id, transcript_data, language)
+
+        finally:
+            # Restaurar requests.get original
+            requests.get = original_request
+
+    def _process_transcript_data(self, video_id: str, transcript_data: list, language: str) -> dict[str, Any]:
+        """
+        Processa dados brutos da transcrição em formato padronizado
+
+        Args:
+            video_id: ID do vídeo
+            transcript_data: Lista de entradas da transcrição
+            language: Código do idioma
+
+        Returns:
+            Dicionário formatado com transcrição completa
+        """
+        # Preservar timestamps e criar segments
+        transcript_segments = []
+        for entry in transcript_data:
+            transcript_segments.append({
+                "text": entry.text,
+                "start": entry.start,
+                "duration": entry.duration,
+                "end": entry.start + entry.duration
+            })
+
+        # Manter compatibilidade: transcrição completa como string
+        full_transcript = " ".join([entry.text for entry in transcript_data])
+
+        # Calcular duração aproximada
+        duration = None
+        if transcript_data:
+            last_entry = transcript_data[-1]
+            duration = int(last_entry.start + last_entry.duration)
+
+        return {
+            "video_id": video_id,
+            "video_url": f"https://www.youtube.com/watch?v={video_id}",
+            "transcript": full_transcript,
+            "language": language,
+            "duration": duration,
+            "title": None,
+            "segments": transcript_segments,
+        }
+
     def get_transcript(
         self, video_url: str
     ) -> dict[str, Any]:
         """
-        Obtém a transcrição de um vídeo do YouTube
+        Obtém a transcrição de um vídeo do YouTube com fallback inteligente
 
         Args:
             video_url: URL do vídeo do YouTube
@@ -93,99 +262,43 @@ class PlaygroundService:
         video_id = self.extract_video_id(video_url)
         if not video_id:
             raise ValueError(
-                f"URL inválida: '{video_url}'. Por favor, forneça uma URL válida do YouTube "
-                "(ex: https://www.youtube.com/watch?v=VIDEO_ID ou https://youtu.be/VIDEO_ID)"
+                "URL inválida. Por favor, forneça uma URL válida do YouTube."
             )
 
+        # Estratégia 1: Tentar método direto (funciona em dev local)
         try:
-            # Criar instância da API
-            api = YouTubeTranscriptApi()
-
-            # Obter lista de transcrições disponíveis para o vídeo
-            transcript_list = api.list(video_id)
-
-            # Coletar todas as transcrições disponíveis
-            # Estratégia: Priorizar transcrições manuais sobre automáticas
-            manual_transcripts = []
-            generated_transcripts = []
-
-            # Iterar sobre o TranscriptList para separar manuais e automáticas
-            for transcript in transcript_list:
-                if transcript.is_generated:
-                    generated_transcripts.append(transcript)
-                else:
-                    manual_transcripts.append(transcript)
-
-            # Escolher a primeira transcrição disponível
-            # Prioridade: Manual > Automática (idioma original)
-            selected_transcript = None
-
-            if manual_transcripts:
-                selected_transcript = manual_transcripts[0]
-            elif generated_transcripts:
-                selected_transcript = generated_transcripts[0]
+            return self._get_transcript_direct(video_id)
+        except TranscriptsDisabled:
+            raise ValueError(
+                "As legendas estão desabilitadas para este vídeo."
+            ) from None
+        except NoTranscriptFound:
+            raise ValueError(
+                "Este vídeo não possui legendas disponíveis."
+            ) from None
+        except VideoUnavailable:
+            raise ValueError(
+                "Vídeo não disponível ou privado."
+            ) from None
+        except Exception:
+            # Se falhar E tivermos ScraperAPI configurado
+            if os.getenv("SCRAPERAPI_KEY"):
+                try:
+                    # Estratégia 2: Tentar via ScraperAPI (produção)
+                    print("Método direto falhou. Tentando via ScraperAPI...")
+                    return self._get_transcript_with_scraperapi(video_id)
+                except Exception:
+                    # Ambos falharam - retornar mensagem amigável
+                    raise ValueError(
+                        "Não foi possível obter a transcrição. "
+                        "Verifique se o vídeo possui legendas disponíveis."
+                    ) from None
             else:
-                raise NoTranscriptFound(
-                    video_id=video_id,
-                    requested_language_codes=[],
-                    transcript_data=None
-                )
-
-            # Buscar os dados da transcrição selecionada
-            # fetch() retorna um FetchedTranscript iterável
-            transcript_data = selected_transcript.fetch()
-            language = selected_transcript.language_code
-
-            if not transcript_data or len(transcript_data) == 0:
+                # Sem ScraperAPI - mensagem amigável
                 raise ValueError(
-                    "Não foi possível obter transcrição. "
-                    "O vídeo pode não ter legendas disponíveis."
-                )
-
-            # Preservar timestamps e criar segments
-            transcript_segments = []
-            for entry in transcript_data:
-                transcript_segments.append({
-                    "text": entry.text,
-                    "start": entry.start,
-                    "duration": entry.duration,
-                    "end": entry.start + entry.duration
-                })
-
-            # Manter compatibilidade: transcrição completa como string
-            full_transcript = " ".join([entry.text for entry in transcript_data])
-
-            # Calcular duração aproximada
-            duration = None
-            if transcript_data:
-                last_entry = transcript_data[-1]
-                duration = int(last_entry.start + last_entry.duration)
-
-            return {
-                "video_id": video_id,
-                "video_url": f"https://www.youtube.com/watch?v={video_id}",
-                "transcript": full_transcript,
-                "language": language,
-                "duration": duration,
-                "title": None,  # YouTube Transcript API não retorna título
-                "segments": transcript_segments,
-            }
-
-        except TranscriptsDisabled as exc:
-            raise ValueError(
-                "As transcrições estão desabilitadas para este vídeo."
-            ) from exc
-        except NoTranscriptFound as exc:
-            raise ValueError(
-                "Nenhuma transcrição disponível para este vídeo. "
-                "O vídeo pode não ter legendas ou transcrição automática."
-            ) from exc
-        except VideoUnavailable as exc:
-            raise ValueError(
-                "Vídeo não disponível. Verifique se o vídeo existe e é público."
-            ) from exc
-        except Exception as e:
-            raise ValueError(f"Erro ao obter transcrição: {e!s}") from e
+                    "Não foi possível obter a transcrição. "
+                    "O vídeo pode estar bloqueado ou sem legendas."
+                ) from None
 
     def _get_cache_key(self, transcript: str, context: str | None = None, keywords: list[str] | None = None) -> str:
         """Gera chave única para cache baseada no conteúdo"""

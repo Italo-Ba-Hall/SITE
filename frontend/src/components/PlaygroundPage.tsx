@@ -145,31 +145,72 @@ const PlaygroundPage: React.FC = () => {
       <div className="logo" style={{ marginBottom: "1rem" }}>YouTube Playground</div>
       <div className="subtitle" style={{ marginBottom: "2rem" }}>Transcrição e Sumarização</div>
 
-      {/* Error Banner */}
+      {/* Error Banner - Visual Amigável */}
       {error && (
         <div
           style={{
-            backgroundColor: "rgba(220, 38, 38, 0.2)",
-            border: "1px solid #dc2626",
+            backgroundColor: "rgba(220, 38, 38, 0.15)",
+            border: "1px solid rgba(220, 38, 38, 0.5)",
             padding: "1rem",
-            borderRadius: "4px",
+            borderRadius: "6px",
             marginBottom: "1.5rem",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-start",
+            maxHeight: "120px",
+            overflow: "hidden",
+            boxShadow: "0 2px 8px rgba(220, 38, 38, 0.2)",
           }}
         >
-          <span style={{ color: "#ffffff", fontSize: "0.875rem" }}>{error}</span>
+          <div style={{ 
+            flex: 1, 
+            display: "flex", 
+            alignItems: "flex-start", 
+            gap: "0.75rem",
+            maxHeight: "100px",
+            overflowY: "auto"
+          }}>
+            <span style={{ 
+              color: "#ff6b6b", 
+              fontSize: "1.25rem",
+              lineHeight: 1,
+              marginTop: "2px"
+            }}>
+              ⚠️
+            </span>
+            <div style={{ flex: 1 }}>
+              <p style={{ 
+                color: "#ffffff", 
+                fontSize: "0.9rem",
+                margin: 0,
+                lineHeight: 1.5,
+                fontWeight: 500
+              }}>
+                {error}
+              </p>
+            </div>
+          </div>
           <button
             onClick={clearError}
             style={{
-              background: "none",
-              border: "none",
+              background: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: "4px",
               color: "#ffffff",
-              fontSize: "1.5rem",
+              fontSize: "1.25rem",
               cursor: "pointer",
-              padding: "0 0.5rem",
+              padding: "0.25rem 0.5rem",
+              marginLeft: "1rem",
+              transition: "all 0.2s",
+              flexShrink: 0
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+            }}
+            title="Fechar"
           >
             ×
           </button>
